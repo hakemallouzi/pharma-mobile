@@ -1,0 +1,144 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  user
+  admin
+  driver
+}
+
+enum DriverStatus {
+  available
+  busy
+  offline
+}
+
+enum OrderStatus {
+  pending
+  searching_pharmacy
+  confirmed
+  driver_assigned
+  on_the_way
+  delivered
+  cancelled
+}
+
+enum PaymentMethod {
+  cash
+  card
+  wallet
+}
+
+enum PaymentStatus {
+  pending
+  completed
+  failed
+  refunded
+}
+
+model User {
+  id                String   @id @default(cuid())
+  phone             String   @unique
+  name              String
+  role              UserRole @default(user)
+  profileCompleted  Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  addresses         Address[]
+  orders            Order[]
+}
+
+model Address {
+  id        String   @id @default(cuid())
+  userId    String
+  city      String
+  area      String
+  street    String
+  latitude  Float
+  longitude Float
+  notes     String?
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orders    Order[]
+}
+
+model Pharmacy {
+  id        String   @id @default(cuid())
+  name      String
+  phone     String
+  address   String
+  latitude  Float
+  longitude Float
+  createdAt DateTime @default(now())
+  orders    Order[]
+}
+
+model Driver {
+  id          String       @id @default(cuid())
+  name        String
+  phone       String
+  vehicleType String
+  status      DriverStatus @default(available)
+  orders      Order[]
+}
+
+model Order {
+  id            String        @id @default(cuid())
+  userId        String
+  addressId     String
+  pharmacyId    String
+  driverId      String?
+  status        OrderStatus   @default(pending)
+  paymentMethod PaymentMethod
+  totalPrice    Decimal       @db.Decimal(10, 2)
+  createdAt     DateTime      @default(now())
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  address       Address       @relation(fields: [addressId], references: [id], onDelete: Cascade)
+  pharmacy      Pharmacy      @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
+  driver        Driver?       @relation(fields: [driverId], references: [id], onDelete: SetNull)
+  items         OrderItem[]
+  prescription  Prescription?
+  payments      Payment[]
+}
+
+model OrderItem {
+  id           String  @id @default(cuid())
+  orderId      String
+  medicineName String
+  quantity     Int
+  price        Decimal @db.Decimal(10, 2)
+  notes        String?
+  order        Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
+
+model Prescription {
+  id        String  @id @default(cuid())
+  orderId  String  @unique
+  imageUrl String
+  verified Boolean @default(false)
+  order     Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
+
+model Payment {
+  id            String        @id @default(cuid())
+  orderId       String
+  paymentMethod PaymentMethod
+  paymentStatus PaymentStatus @default(pending)
+  transactionId String?
+  amount        Decimal       @db.Decimal(10, 2)
+  order         Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
+
+model OtpCode {
+  id        String   @id @default(cuid())
+  phone     String
+  code      String
+  expiresAt DateTime
+}
