@@ -14,7 +14,7 @@ export type CheckoutCartLine = {
 export type MainTabParamList = {
   Home: undefined;
   Search: undefined;
-  Orders: undefined;
+  Chat: undefined;
   Cart: undefined;
   Profile: undefined;
 };
@@ -30,7 +30,42 @@ export type RootStackParamList = {
   Checkout: { lines?: CheckoutCartLine[]; promoCode?: string } | undefined;
   OrderDetail: { orderId?: string };
   ProductList: { category?: string; query?: string };
-  PharmacyList: undefined;
+  ProductDetail: {
+    item: {
+      category: string;
+      title: string;
+      sub: string;
+      price: string;
+      priceValue: number;
+      badge?: string;
+      tertiary?: boolean;
+      image: string;
+    };
+  };
+  PharmacyList:
+    | {
+        focusMap?: boolean;
+        pharmacyName?: string;
+        pharmacyInfo?: string;
+        latitude?: number;
+        longitude?: number;
+      }
+    | undefined;
+  PharmacyDetail: {
+    pharmacyName: string;
+    pharmacyInfo?: string;
+    pharmacyImage?: string;
+    address?: string;
+    hours?: string;
+    delivery?: string;
+    services?: string;
+    contact?: string;
+    latitude?: number;
+    longitude?: number;
+  };
+  SpecialistChat: {
+    topic?: 'prescription' | 'general';
+  };
   BarcodeScan: undefined;
 };
 

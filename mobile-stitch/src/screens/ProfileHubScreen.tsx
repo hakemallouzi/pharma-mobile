@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import React, { useMemo } from 'react';
-import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { imagesB2 } from '../assets/imagesBatch2';
@@ -35,11 +35,43 @@ export function ProfileHubScreen() {
   const { t, locale, setLocale, isRTL } = useLocale();
   const { colors, toggleScheme, isDark, scheme } = useTheme();
   const styles = useMemo(() => createProfileHubStyles(colors, isDark), [colors, isDark]);
+  const [profile, setProfile] = React.useState(DEMO_USER);
+  const [editMode, setEditMode] = React.useState(false);
+  const [draftProfile, setDraftProfile] = React.useState(DEMO_USER);
   const themeLabel = scheme === 'light' ? 'Light' : 'Dark';
 
   const chevron = (isRTL ? 'chevron-left' : 'chevron-right') as keyof typeof MaterialCommunityIcons.glyphMap;
-  const dob = locale === 'ar' ? DEMO_USER.dateOfBirthAr : DEMO_USER.dateOfBirth;
-  const memberSince = locale === 'ar' ? DEMO_USER.memberSinceAr : DEMO_USER.memberSince;
+  const dob = locale === 'ar' ? profile.dateOfBirthAr : profile.dateOfBirth;
+  const memberSince = locale === 'ar' ? profile.memberSinceAr : profile.memberSince;
+
+  const openEdit = () => {
+    setDraftProfile(profile);
+    setEditMode(true);
+  };
+
+  const cancelEdit = () => {
+    setDraftProfile(profile);
+    setEditMode(false);
+  };
+
+  const setDraftField = (key: keyof typeof DEMO_USER, value: string) => {
+    setDraftProfile((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const saveEdit = () => {
+    const normalize = (value: string, fallback: string) => value.trim() || fallback;
+    setProfile((prev) => ({
+      ...prev,
+      name: normalize(draftProfile.name, prev.name),
+      email: normalize(draftProfile.email, prev.email),
+      phone: normalize(draftProfile.phone, prev.phone),
+      memberId: normalize(draftProfile.memberId, prev.memberId),
+      dateOfBirth: normalize(draftProfile.dateOfBirth, prev.dateOfBirth),
+      dateOfBirthAr: normalize(draftProfile.dateOfBirthAr, prev.dateOfBirthAr),
+      healthIdDisplay: normalize(draftProfile.healthIdDisplay, prev.healthIdDisplay),
+    }));
+    setEditMode(false);
+  };
 
   return (
     <View style={[styles.root, { direction: isRTL ? 'rtl' : 'ltr' }]}>
@@ -57,9 +89,6 @@ export function ProfileHubScreen() {
                 color={colors.mutedIcon}
               />
             </Pressable>
-            <Pressable hitSlop={8} onPress={() => Alert.alert('Menu', 'More account options coming soon.')}>
-              <MaterialCommunityIcons name="dots-vertical" size={24} color={colors.primary} />
-            </Pressable>
           </View>
         }
       />
@@ -76,48 +105,141 @@ export function ProfileHubScreen() {
               <Image source={{ uri: imagesB2.profileAvatar }} style={styles.avatar} contentFit="cover" />
             </View>
             <View style={styles.identityText}>
-              <Text style={styles.name}>{DEMO_USER.name}</Text>
+              {editMode ? (
+                <View style={styles.inlineFieldWrap}>
+                  <Text style={styles.inlineFieldLabel}>Name</Text>
+                  <TextInput
+                    style={styles.inlineNameInput}
+                    value={draftProfile.name}
+                    onChangeText={(v) => setDraftField('name', v)}
+                    placeholder="Name"
+                    placeholderTextColor={colors.outline}
+                  />
+                </View>
+              ) : (
+                <Text style={styles.name}>{profile.name}</Text>
+              )}
               <View style={styles.badge}>
                 <Text style={styles.badgeTxt}>{t.profilePremiumBadge}</Text>
               </View>
-              <Text style={styles.signedInHint}>
-                {t.profileSignedInAs} {DEMO_USER.email}
-              </Text>
+              {editMode ? (
+                <View style={styles.inlineFieldWrap}>
+                  <Text style={styles.inlineFieldLabel}>Email</Text>
+                  <TextInput
+                    style={styles.inlineHintInput}
+                    value={draftProfile.email}
+                    onChangeText={(v) => setDraftField('email', v)}
+                    placeholder="Email"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    placeholderTextColor={colors.outline}
+                  />
+                </View>
+              ) : (
+                <Text style={styles.signedInHint}>
+                  {t.profileSignedInAs} {profile.email}
+                </Text>
+              )}
             </View>
           </View>
 
-          <Pressable
-            style={styles.editRow}
-            onPress={() => Alert.alert(t.profileEditProfile, 'Profile editor would open here.')}
-          >
-            <MaterialCommunityIcons name="pencil-outline" size={18} color={colors.primary} />
-            <Text style={styles.editRowTxt}>{t.profileEditProfile}</Text>
-          </Pressable>
+          {editMode ? (
+            <View style={styles.editActionsRow}>
+              <Pressable style={styles.editActionGhost} onPress={cancelEdit}>
+                <Text style={styles.editActionGhostTxt}>Cancel</Text>
+              </Pressable>
+              <Pressable style={styles.editAction} onPress={saveEdit}>
+                <Text style={styles.editActionTxt}>Save</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <Pressable style={styles.editRow} onPress={openEdit}>
+              <MaterialCommunityIcons name="pencil-outline" size={18} color={colors.primary} />
+              <Text style={styles.editRowTxt}>{t.profileEditProfile}</Text>
+            </Pressable>
+          )}
 
           <View style={styles.contactBlock}>
             <Text style={styles.contactHeading}>{t.profileContact}</Text>
-            <ContactLine st={styles} icon="email-outline" value={DEMO_USER.email} />
-            <ContactLine st={styles} icon="phone-outline" value={DEMO_USER.phone} />
-            <ContactLine st={styles} icon="card-account-details-outline" label={t.profileMemberId} value={DEMO_USER.memberId} />
-            <ContactLine st={styles} icon="cake-variant-outline" label={t.profileDateOfBirth} value={dob} />
+            {editMode ? (
+              <View style={styles.inlineEditGroup}>
+                <View style={styles.inlineFieldWrap}>
+                  <Text style={styles.inlineFieldLabel}>Email</Text>
+                  <TextInput
+                    style={styles.inlineFieldInput}
+                    value={draftProfile.email}
+                    onChangeText={(v) => setDraftField('email', v)}
+                    placeholder="Email"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    placeholderTextColor={colors.outline}
+                  />
+                </View>
+                <View style={styles.inlineFieldWrap}>
+                  <Text style={styles.inlineFieldLabel}>Phone</Text>
+                  <TextInput
+                    style={styles.inlineFieldInput}
+                    value={draftProfile.phone}
+                    onChangeText={(v) => setDraftField('phone', v)}
+                    placeholder="Phone"
+                    keyboardType="phone-pad"
+                    placeholderTextColor={colors.outline}
+                  />
+                </View>
+                <View style={styles.inlineFieldWrap}>
+                  <Text style={styles.inlineFieldLabel}>{t.profileMemberId}</Text>
+                  <TextInput
+                    style={styles.inlineFieldInput}
+                    value={draftProfile.memberId}
+                    onChangeText={(v) => setDraftField('memberId', v)}
+                    placeholder={t.profileMemberId}
+                    placeholderTextColor={colors.outline}
+                  />
+                </View>
+                <View style={styles.inlineFieldWrap}>
+                  <Text style={styles.inlineFieldLabel}>{t.profileDateOfBirth}</Text>
+                  <TextInput
+                    style={styles.inlineFieldInput}
+                    value={locale === 'ar' ? draftProfile.dateOfBirthAr : draftProfile.dateOfBirth}
+                    onChangeText={(v) => {
+                      if (locale === 'ar') setDraftField('dateOfBirthAr', v);
+                      else setDraftField('dateOfBirth', v);
+                    }}
+                    placeholder={t.profileDateOfBirth}
+                    placeholderTextColor={colors.outline}
+                  />
+                </View>
+              </View>
+            ) : (
+              <>
+                <ContactLine st={styles} icon="email-outline" value={profile.email} />
+                <ContactLine st={styles} icon="phone-outline" value={profile.phone} />
+                <ContactLine st={styles} icon="card-account-details-outline" label={t.profileMemberId} value={profile.memberId} />
+                <ContactLine st={styles} icon="cake-variant-outline" label={t.profileDateOfBirth} value={dob} />
+              </>
+            )}
           </View>
 
-          <View style={styles.statsGrid}>
-            <StatTile st={styles} label={t.profileMemberSince} value={memberSince} />
-            <StatTile st={styles} label={t.profileHealthScore} value={`${DEMO_USER.healthScore}/100`} highlight />
-            <StatTile
-              st={styles}
-              label={t.profileActiveRx}
-              value={String(DEMO_USER.activePrescriptions)}
-              onPress={() => navigation.navigate('ProductList', { category: 'Medicines' })}
-            />
-            <StatTile
-              st={styles}
-              label={t.profileOpenOrders}
-              value={String(DEMO_USER.openOrders)}
-              onPress={() => navigation.navigate('Main', { screen: 'Orders' })}
-            />
-          </View>
+          {!editMode ? (
+            <View style={styles.statsGrid}>
+              <>
+                <StatTile st={styles} label={t.profileMemberSince} value={memberSince} />
+                <StatTile st={styles} label={t.profileHealthScore} value={`${profile.healthScore}/100`} highlight />
+                <StatTile
+                  st={styles}
+                  label={t.profileActiveRx}
+                  value={String(profile.activePrescriptions)}
+                  onPress={() => navigation.navigate('ProductList', { category: 'Medicines' })}
+                />
+                <StatTile
+                  st={styles}
+                  label={t.profileOpenOrders}
+                  value={String(profile.openOrders)}
+                  onPress={() => navigation.navigate('Main', { screen: 'Chat' })}
+                />
+              </>
+            </View>
+          ) : null}
         </View>
 
         {/* Health ID */}
@@ -126,7 +248,7 @@ export function ProfileHubScreen() {
           onPress={() =>
             Alert.alert(
               t.profileHealthId,
-              `${DEMO_USER.healthIdDisplay}\n\nShow this code at labs and prescription pickup.`
+              `${profile.healthIdDisplay}\n\nShow this code at labs and prescription pickup.`
             )
           }
         >
@@ -135,166 +257,26 @@ export function ProfileHubScreen() {
             <View style={{ flex: 1 }}>
               <Text style={styles.qrTitle}>{t.profileHealthId}</Text>
               <Text style={styles.qrSub}>{t.profileHealthIdHint}</Text>
-              <Text style={styles.qrCode}>{DEMO_USER.healthIdDisplay}</Text>
+              {editMode ? (
+                <View style={styles.inlineFieldWrap}>
+                  <Text style={styles.inlineFieldLabelLight}>{t.profileHealthId}</Text>
+                  <TextInput
+                    style={styles.inlineQrInput}
+                    value={draftProfile.healthIdDisplay}
+                    onChangeText={(v) => setDraftField('healthIdDisplay', v)}
+                    placeholder="Health ID"
+                    autoCapitalize="characters"
+                    placeholderTextColor={colors.onPrimaryContainer}
+                  />
+                </View>
+              ) : (
+                <Text style={styles.qrCode}>{profile.healthIdDisplay}</Text>
+              )}
             </View>
             <MaterialCommunityIcons name={chevron} size={22} color={colors.onPrimaryContainer} />
           </View>
         </Pressable>
 
-        <Section st={styles} title={t.profileSectionClinical} isRTL={isRTL}>
-          <Row
-            st={styles}
-            icon="file-document-outline"
-            label={t.profilePrescriptions}
-            chevron={chevron}
-            onPress={() => navigation.navigate('ProductList', { category: 'Medicines' })}
-          />
-          <Row
-            st={styles}
-            icon="microscope"
-            label={t.profileLabResults}
-            chevron={chevron}
-            onPress={() => navigation.navigate('OrderDetail', { orderId: 'LAB-RESULTS' })}
-          />
-          <Row
-            st={styles}
-            icon="bell-ring-outline"
-            label={t.profileCareReminders}
-            chevron={chevron}
-            onPress={() => navigation.navigate('Main', { screen: 'Home' })}
-          />
-        </Section>
-
-        <Section st={styles} title={t.profileSectionOrders} isRTL={isRTL}>
-          <Row
-            st={styles}
-            icon="receipt"
-            label={t.profileOrders}
-            chevron={chevron}
-            onPress={() => navigation.navigate('Main', { screen: 'Orders' })}
-          />
-          <Row
-            st={styles}
-            icon="cart-outline"
-            label={t.profileCart}
-            chevron={chevron}
-            onPress={() => navigation.navigate('Main', { screen: 'Cart' })}
-          />
-          <Row
-            st={styles}
-            icon="map-marker"
-            label={t.profileAddresses}
-            chevron={chevron}
-            onPress={() => navigation.navigate('Addresses')}
-          />
-          <Row
-            st={styles}
-            icon="credit-card-outline"
-            label={t.profilePayment}
-            chevron={chevron}
-            onPress={() => navigation.navigate('Checkout')}
-          />
-          <Row
-            st={styles}
-            icon="storefront-outline"
-            label={t.profilePharmacies}
-            chevron={chevron}
-            onPress={() => navigation.navigate('PharmacyList')}
-          />
-        </Section>
-
-        <Section st={styles} title={t.profileSectionSupport} isRTL={isRTL}>
-          <Row
-            st={styles}
-            icon="bell-outline"
-            label={t.profileNotifications}
-            sub={locale === 'ar' ? 'البريد والطلبات' : 'Orders & refills'}
-            chevron={chevron}
-            onPress={() => Alert.alert(t.profileNotifications, 'Notification preferences would be managed here.')}
-          />
-          <Row
-            st={styles}
-            icon="lifebuoy"
-            label={t.profileHelp}
-            chevron={chevron}
-            onPress={() => Linking.openURL('mailto:support@vitalis.health').catch(() => {})}
-          />
-          <Row
-            st={styles}
-            icon="shield-lock-outline"
-            label={t.profilePrivacy}
-            chevron={chevron}
-            onPress={() => Linking.openURL('https://vitalis.health/privacy').catch(() => {})}
-          />
-          <Row
-            st={styles}
-            icon="file-document-outline"
-            label={t.profileTerms}
-            chevron={chevron}
-            onPress={() => Linking.openURL('https://vitalis.health/terms').catch(() => {})}
-          />
-        </Section>
-
-        <Section st={styles} title={t.profileSectionPreferences} isRTL={isRTL}>
-          <Row
-            st={styles}
-            icon="cog-outline"
-            label={t.profileSettings}
-            sub={`${t.language}: ${locale.toUpperCase()} · ${themeLabel}`}
-            chevron={chevron}
-            onPress={() =>
-              Alert.alert(t.profileSettings, `${t.language}: use the options below to switch EN/AR.`)
-            }
-          />
-          <Text style={[styles.langHint, isRTL && { marginLeft: 0, marginRight: 8 }]}>{t.language}</Text>
-          <Pressable
-            style={[styles.langRow, locale === 'en' && styles.langOn]}
-            onPress={() => setLocale('en')}
-          >
-            <Text style={styles.langLabel}>{t.english}</Text>
-            {locale === 'en' ? <MaterialCommunityIcons name="check" size={20} color={colors.primary} /> : null}
-          </Pressable>
-          <Pressable
-            style={[styles.langRow, locale === 'ar' && styles.langOn]}
-            onPress={() => setLocale('ar')}
-          >
-            <Text style={styles.langLabel}>{t.arabic}</Text>
-            {locale === 'ar' ? <MaterialCommunityIcons name="check" size={20} color={colors.primary} /> : null}
-          </Pressable>
-          <Row
-            st={styles}
-            icon="key-variant"
-            label={t.profileSecurity}
-            chevron={chevron}
-            onPress={() =>
-              Alert.alert(t.profileSecurity, 'Password, two-factor authentication, and devices would be managed here.')
-            }
-          />
-          <Row
-            st={styles}
-            icon="logout"
-            label={t.profileLogout}
-            danger
-            chevron={chevron}
-            onPress={() => {
-              signOut();
-              navigation.navigate('AuthGate');
-            }}
-          />
-        </Section>
-
-        {!isAuthenticated ? (
-          <Pressable onPress={() => navigation.navigate('Login')} style={styles.linkWrap}>
-            <Text style={styles.link}>{locale === 'ar' ? 'تسجيل الدخول' : 'Sign in'}</Text>
-          </Pressable>
-        ) : null}
-
-        <View style={styles.footerMeta}>
-          <Text style={styles.footerBrand}>{t.profileAppTagline}</Text>
-          <Text style={styles.ver}>
-            {t.profileVersion} 2.4.0 · {locale.toUpperCase()}
-          </Text>
-        </View>
       </ScrollView>
     </View>
   );
@@ -455,6 +437,21 @@ function createProfileHubStyles(c: ThemeColors, isDark: boolean) {
       paddingHorizontal: 4,
     },
     editRowTxt: { fontSize: 14, fontWeight: '700', color: c.primary },
+    editActionsRow: { flexDirection: 'row', gap: 10, alignSelf: 'flex-end', marginTop: 14 },
+    editActionGhost: {
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      borderRadius: 10,
+      backgroundColor: c.surfaceContainerHigh,
+    },
+    editActionGhostTxt: { color: c.onSurface, fontWeight: '700' },
+    editAction: {
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      borderRadius: 10,
+      backgroundColor: c.primaryContainer,
+    },
+    editActionTxt: { color: c.onPrimaryContainer, fontWeight: '800' },
     contactBlock: {
       marginTop: 18,
       paddingTop: 18,
@@ -473,6 +470,57 @@ function createProfileHubStyles(c: ThemeColors, isDark: boolean) {
     contactIcon: { marginTop: 2 },
     contactLabel: { fontSize: 11, color: c.outline, marginBottom: 2 },
     contactValue: { fontSize: 14, fontWeight: '600', color: c.onSurface },
+    inlineEditGroup: { gap: 8 },
+    inlineFieldWrap: { gap: 6 },
+    inlineFieldLabel: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: c.mutedIcon,
+      letterSpacing: 0.3,
+      textTransform: 'uppercase',
+    },
+    inlineFieldLabelLight: {
+      fontSize: 11,
+      fontWeight: '800',
+      color: c.onPrimaryContainer,
+      opacity: 0.9,
+      letterSpacing: 0.4,
+      textTransform: 'uppercase',
+    },
+    inlineFieldInput: {
+      height: 42,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: c.outlineVariant,
+      backgroundColor: c.surfaceContainerHigh,
+      paddingHorizontal: 12,
+      color: c.onSurface,
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    inlineNameInput: {
+      height: 40,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: c.outlineVariant,
+      backgroundColor: c.surfaceContainerHigh,
+      color: c.onSurface,
+      fontSize: 18,
+      fontWeight: '800',
+      paddingHorizontal: 12,
+      minWidth: 180,
+    },
+    inlineHintInput: {
+      height: 38,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: c.outlineVariant,
+      backgroundColor: c.surfaceContainerHigh,
+      color: c.onSurfaceVariant,
+      fontSize: 12,
+      paddingHorizontal: 10,
+    },
+    inlineStatsEdit: { width: '100%', gap: 8 },
     statsGrid: {
       flexDirection: 'row',
       flexWrap: 'wrap',
@@ -512,6 +560,19 @@ function createProfileHubStyles(c: ThemeColors, isDark: boolean) {
       color: c.onPrimaryContainer,
       marginTop: 8,
       opacity: 0.95,
+    },
+    inlineQrInput: {
+      marginTop: 8,
+      height: 34,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: 'rgba(255,255,255,0.45)',
+      backgroundColor: 'rgba(255,255,255,0.14)',
+      color: c.onPrimaryContainer,
+      paddingHorizontal: 10,
+      fontSize: 13,
+      fontWeight: '800',
+      letterSpacing: 1,
     },
     section: { marginTop: 26 },
     sectionTitle: {

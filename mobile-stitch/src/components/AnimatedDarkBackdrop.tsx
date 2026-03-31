@@ -547,7 +547,8 @@ export function AnimatedDarkBackdrop({ dispatch }: { dispatch: React.Dispatch<Re
   return (
     <View style={[StyleSheet.absoluteFill, styles.backdropZ]} pointerEvents="none">
       <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.background }]} />
-      <BubbleField width={w} height={h} dispatch={dispatch} />
+      {/* Floating capsule animation disabled temporarily. */}
+      {/* <BubbleField width={w} height={h} dispatch={dispatch} /> */}
     </View>
   );
 }

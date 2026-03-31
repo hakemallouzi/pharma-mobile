@@ -1,30 +1,39 @@
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useMemo } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { Alert, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { images } from '../assets/images';
 import { ScreenScroll, SCREEN_CONTENT_GUTTER } from '../components/ScreenScroll';
+import { useLocale } from '../context/LocaleContext';
 import { useAppNavigation } from '../navigation/useAppNavigation';
 import type { ThemeColors } from '../theme/palettes';
 import { screenRootBg } from '../theme/screenBackground';
 import { useTheme } from '../theme/ThemeContext';
 
 const categories = [
+  { icon: 'view-grid-plus-outline' as const, label: 'كل الأقسام', category: 'All', greenBg: true },
   { icon: 'needle' as const, label: 'اللقاحات' },
   { icon: 'heart-pulse' as const, label: 'القلب' },
   { icon: 'brain' as const, label: 'النفسية' },
   { icon: 'tooth-outline' as const, label: 'الأسنان' },
   { icon: 'eye-outline' as const, label: 'العيون' },
   { icon: 'allergy' as const, label: 'الجلدية' },
+  { icon: 'baby-bottle-outline' as const, label: 'العناية بالطفل' },
+  { icon: 'pill' as const, label: 'الفيتامينات' },
+  { icon: 'bandage' as const, label: 'الإسعافات' },
+  { icon: 'stethoscope' as const, label: 'الأجهزة الطبية' },
 ];
 
 export function HomeArScreen() {
   const insets = useSafeAreaInsets();
   const nav = useAppNavigation();
+  const { t } = useLocale();
   const { colors, isDark } = useTheme();
   const styles = useMemo(() => createHomeArStyles(colors, isDark), [colors, isDark]);
+  const [showAllCategories, setShowAllCategories] = useState(true);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   return (
     <View style={styles.root}>
@@ -43,6 +52,9 @@ export function HomeArScreen() {
           </Pressable>
           <Pressable style={styles.notifBtn}>
             <MaterialCommunityIcons name="bell-outline" size={22} color={colors.primary} />
+          </Pressable>
+          <Pressable style={styles.notifBtn} onPress={() => setMenuOpen(true)}>
+            <MaterialCommunityIcons name="menu" size={22} color={colors.primary} />
           </Pressable>
         </View>
       </View>
@@ -86,29 +98,53 @@ export function HomeArScreen() {
 
         <View style={styles.sectionHead}>
           <Text style={styles.sectionTitle}>الأقسام</Text>
-          <Pressable onPress={() => nav.navigate('ProductList', { category: 'All' })}>
-            <Text style={styles.link}>عرض الكل</Text>
+          <Pressable onPress={() => setShowAllCategories((v) => !v)}>
+            <View style={styles.linkRow}>
+              <Text style={styles.link}>{showAllCategories ? 'عرض أقل' : 'عرض الكل'}</Text>
+              <MaterialCommunityIcons
+                name={showAllCategories ? 'chevron-up' : 'chevron-down'}
+                size={18}
+                color={colors.primary}
+              />
+            </View>
           </Pressable>
         </View>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={[styles.hScroll, styles.hScrollBleed]}
-          contentContainerStyle={styles.hScrollBleedContent}
-        >
-          {categories.map((item) => (
-            <Pressable
-              key={item.label}
-              style={styles.catItem}
-              onPress={() => nav.navigate('ProductList', { category: item.label })}
-            >
-              <View style={styles.catIcon}>
-                <MaterialCommunityIcons name={item.icon} size={28} color={colors.primary} />
-              </View>
-              <Text style={styles.catLabel}>{item.label}</Text>
-            </Pressable>
-          ))}
-        </ScrollView>
+        {showAllCategories ? (
+          <View style={styles.catGrid}>
+            {categories.map((item) => (
+              <Pressable
+                key={item.label}
+                style={styles.catGridItem}
+                onPress={() => nav.navigate('ProductList', { category: item.category ?? item.label })}
+              >
+                <View style={[styles.catIcon, item.greenBg && { backgroundColor: `${colors.secondary}30` }]}>
+                  <MaterialCommunityIcons name={item.icon} size={28} color={colors.primary} />
+                </View>
+                <Text style={styles.catLabel}>{item.label}</Text>
+              </Pressable>
+            ))}
+          </View>
+        ) : (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={[styles.hScroll, styles.hScrollBleed]}
+            contentContainerStyle={styles.hScrollBleedContent}
+          >
+            {categories.map((item) => (
+              <Pressable
+                key={item.label}
+                style={styles.catItem}
+                onPress={() => nav.navigate('ProductList', { category: item.category ?? item.label })}
+              >
+                <View style={[styles.catIcon, item.greenBg && { backgroundColor: `${colors.secondary}30` }]}>
+                  <MaterialCommunityIcons name={item.icon} size={28} color={colors.primary} />
+                </View>
+                <Text style={styles.catLabel}>{item.label}</Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+        )}
 
         <View style={styles.sectionHead}>
           <Text style={styles.sectionTitle}>الصيدلية المختارة</Text>
@@ -163,9 +199,63 @@ export function HomeArScreen() {
       >
         <MaterialCommunityIcons name="plus" size={32} color={colors.onPrimary} />
       </Pressable>
+      <Modal visible={menuOpen} transparent animationType="fade" onRequestClose={() => setMenuOpen(false)}>
+        <Pressable style={styles.drawerBackdrop} onPress={() => setMenuOpen(false)} />
+        <View style={[styles.drawerSheet, { paddingTop: insets.top + 10 }]}>
+          <View style={styles.drawerHead}>
+            <Text style={styles.drawerTitle}>القائمة</Text>
+            <Pressable hitSlop={8} onPress={() => setMenuOpen(false)}>
+              <MaterialCommunityIcons name="close" size={22} color={colors.onSurface} />
+            </Pressable>
+          </View>
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.drawerContent}>
+            <Text style={styles.drawerSection}>{t.profileSectionClinical}</Text>
+            <MenuItem label={t.profilePrescriptions} onPress={() => { setMenuOpen(false); nav.navigate('ProductList', { category: 'Medicines' }); }} />
+            <MenuItem label={t.profileLabResults} onPress={() => { setMenuOpen(false); nav.navigate('OrderDetail', { orderId: 'LAB-RESULTS' }); }} />
+            <MenuItem label={t.profileCareReminders} onPress={() => { setMenuOpen(false); nav.navigate('Main', { screen: 'Home' }); }} />
+
+            <Text style={styles.drawerSection}>{t.profileSectionOrders}</Text>
+            <MenuItem label={t.profileOrders} onPress={() => { setMenuOpen(false); nav.navigate('Main', { screen: 'Chat' }); }} />
+            <MenuItem label={t.profileCart} onPress={() => { setMenuOpen(false); nav.navigate('Main', { screen: 'Cart' }); }} />
+            <MenuItem label={t.profileAddresses} onPress={() => { setMenuOpen(false); nav.navigate('Addresses'); }} />
+            <MenuItem label={t.profilePayment} onPress={() => { setMenuOpen(false); nav.navigate('Checkout'); }} />
+            <MenuItem label={t.profilePharmacies} onPress={() => { setMenuOpen(false); nav.navigate('PharmacyList'); }} />
+
+            <Text style={styles.drawerSection}>{t.profileSectionSupport}</Text>
+            <MenuItem label={t.profileNotifications} onPress={() => { setMenuOpen(false); Alert.alert(t.profileNotifications, 'Notification preferences would be managed here.'); }} />
+            <MenuItem label={t.profileHelp} onPress={() => { setMenuOpen(false); Linking.openURL('mailto:support@vitalis.health').catch(() => {}); }} />
+            <MenuItem label={t.profilePrivacy} onPress={() => { setMenuOpen(false); Linking.openURL('https://vitalis.health/privacy').catch(() => {}); }} />
+            <MenuItem label={t.profileTerms} onPress={() => { setMenuOpen(false); Linking.openURL('https://vitalis.health/terms').catch(() => {}); }} />
+          </ScrollView>
+        </View>
+      </Modal>
     </View>
   );
 }
+
+function MenuItem({ label, onPress }: { label: string; onPress: () => void }) {
+  const { colors } = useTheme();
+  return (
+    <Pressable style={[stylesMenu.row, { backgroundColor: colors.surfaceContainerLow, borderColor: colors.outlineVariant }]} onPress={onPress}>
+      <Text style={[stylesMenu.txt, { color: colors.onSurface }]}>{label}</Text>
+      <MaterialCommunityIcons name="chevron-left" size={20} color={colors.chevronMuted} />
+    </Pressable>
+  );
+}
+
+const stylesMenu = StyleSheet.create({
+  row: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    marginBottom: 8,
+  },
+  txt: { fontSize: 15, fontWeight: '600' },
+});
 
 function FeaturedRow({
   styles,
@@ -244,6 +334,37 @@ function createHomeArStyles(c: ThemeColors, isDark: boolean) {
       alignItems: 'center',
       justifyContent: 'center',
     },
+    drawerBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.34)' },
+    drawerSheet: {
+      position: 'absolute',
+      top: 0,
+      bottom: 0,
+      left: 0,
+      width: '84%',
+      maxWidth: 360,
+      backgroundColor: c.surface,
+      borderRightWidth: StyleSheet.hairlineWidth,
+      borderRightColor: c.outlineVariant,
+      paddingHorizontal: 16,
+    },
+    drawerHead: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingBottom: 12,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: c.outlineVariant,
+    },
+    drawerTitle: { fontSize: 18, fontWeight: '800', color: c.onSurface },
+    drawerContent: { paddingVertical: 10, gap: 6, paddingBottom: 42 },
+    drawerSection: {
+      marginTop: 12,
+      fontSize: 11,
+      fontWeight: '800',
+      letterSpacing: 1.3,
+      color: c.mutedIcon,
+      textTransform: 'uppercase',
+    },
     bentoRow: { gap: 16, marginBottom: 24 },
     heroCard: {
       borderRadius: 32,
@@ -307,6 +428,7 @@ function createHomeArStyles(c: ThemeColors, isDark: boolean) {
     },
     sectionTitle: { fontSize: 20, fontWeight: '800', color: c.onSurface },
     link: { fontSize: 12, fontWeight: '800', color: c.primary },
+    linkRow: { flexDirection: 'row', alignItems: 'center', gap: 2 },
     badge: {
       fontSize: 10,
       fontWeight: '800',
@@ -323,6 +445,8 @@ function createHomeArStyles(c: ThemeColors, isDark: boolean) {
       paddingRight: SCREEN_CONTENT_GUTTER,
     },
     catItem: { alignItems: 'center', marginLeft: 16, width: 72 },
+    catGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 24 },
+    catGridItem: { alignItems: 'center', width: '22%' },
     catIcon: {
       width: 64,
       height: 64,

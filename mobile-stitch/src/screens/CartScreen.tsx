@@ -4,58 +4,24 @@ import React, { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { imagesB2 } from '../assets/imagesBatch2';
+import { useCart } from '../context/CartContext';
 import { useAppNavigation } from '../navigation/useAppNavigation';
-import type { CheckoutCartLine } from '../navigation/navigationTypes';
 import { ClinicalHeader } from '../components/ClinicalHeader';
 import type { ThemeColors } from '../theme/palettes';
 import { screenRootBg } from '../theme/screenBackground';
 import { useTheme } from '../theme/ThemeContext';
-
-const initial: CheckoutCartLine[] = [
-  {
-    id: '1',
-    title: 'Vitalis Multivitamin Complex',
-    sub: '60 Capsules',
-    price: '42.00',
-    qty: 1,
-    image: imagesB2.cartItem1,
-  },
-  {
-    id: '2',
-    title: 'Sleep Support Tincture',
-    sub: '30ml | Organic',
-    price: '56.00',
-    qty: 2,
-    image: imagesB2.cartItem2,
-  },
-  {
-    id: '3',
-    title: 'Advanced Glucose Sensor',
-    sub: 'Pack of 2',
-    price: '125.00',
-    qty: 1,
-    image: imagesB2.cartItem3,
-  },
-];
 
 export function CartScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useAppNavigation();
   const { colors, isDark } = useTheme();
   const styles = useMemo(() => createCartStyles(colors, isDark), [colors, isDark]);
-  const [lines, setLines] = useState(initial);
+  const { lines, removeItem, setQty } = useCart();
   const [promo, setPromo] = useState('');
 
   const subtotal = lines.reduce((sum, l) => sum + parseFloat(l.price) * l.qty, 0);
   const tax = subtotal * 0.08;
   const total = subtotal + tax;
-
-  const setQty = (id: string, delta: number) => {
-    setLines((prev) =>
-      prev.map((l) => (l.id === id ? { ...l, qty: Math.max(1, l.qty + delta) } : l))
-    );
-  };
 
   return (
     <View style={styles.root}>
@@ -71,6 +37,14 @@ export function CartScreen() {
         <Text style={styles.pageTitle}>Review Your Items</Text>
         <Text style={styles.pageSub}>{lines.length} items in your medical sanctuary basket.</Text>
 
+        {lines.length === 0 ? (
+          <View style={styles.emptyBox}>
+            <MaterialCommunityIcons name="cart-outline" size={34} color={colors.outline} />
+            <Text style={styles.emptyTitle}>Your cart is empty</Text>
+            <Text style={styles.emptySub}>Add products from categories and they will appear here.</Text>
+          </View>
+        ) : null}
+
         {lines.map((l) => (
           <View key={l.id} style={styles.line}>
             <View style={styles.strip} />
@@ -81,7 +55,7 @@ export function CartScreen() {
                   <Text style={styles.lineTitle}>{l.title}</Text>
                   <Text style={styles.lineSub}>{l.sub}</Text>
                 </View>
-                <Pressable onPress={() => setLines((p) => p.filter((x) => x.id !== l.id))}>
+                <Pressable onPress={() => removeItem(l.id)}>
                   <MaterialCommunityIcons name="delete-outline" size={22} color={colors.onSurfaceVariant} />
                 </Pressable>
               </View>
@@ -190,6 +164,18 @@ function createCartStyles(c: ThemeColors, isDark: boolean) {
     root: { flex: 1, backgroundColor: screenRootBg(isDark, c.background) },
     pageTitle: { fontSize: 32, fontWeight: '900', color: c.onSurface, marginTop: 8 },
     pageSub: { color: c.onSurfaceVariant, fontWeight: '600', marginBottom: 20 },
+    emptyBox: {
+      backgroundColor: c.surfaceContainerLow,
+      borderRadius: 16,
+      padding: 18,
+      borderWidth: 1,
+      borderColor: c.outlineVariant,
+      alignItems: 'center',
+      marginBottom: 14,
+      gap: 6,
+    },
+    emptyTitle: { fontSize: 16, fontWeight: '800', color: c.onSurface },
+    emptySub: { fontSize: 12, color: c.onSurfaceVariant, textAlign: 'center', maxWidth: 280 },
     line: {
       flexDirection: 'row',
       backgroundColor: c.surfaceContainerLow,

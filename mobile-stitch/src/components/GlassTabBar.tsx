@@ -19,7 +19,7 @@ import { useTheme } from '../theme/ThemeContext';
 const icons: Record<string, keyof typeof MaterialCommunityIcons.glyphMap> = {
   Home: 'home',
   Search: 'magnify',
-  Orders: 'receipt',
+  Chat: 'chat-processing-outline',
   Cart: 'cart',
   Profile: 'account',
 };
@@ -33,7 +33,7 @@ export function GlassTabBar({ state, navigation }: BottomTabBarProps) {
   const labels: Record<string, string> = {
     Home: t.tabHome,
     Search: t.tabSearch,
-    Orders: t.tabOrders,
+    Chat: t.tabChat,
     Cart: t.tabCart,
     Profile: t.tabProfile,
   };

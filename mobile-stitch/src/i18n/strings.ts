@@ -4,6 +4,7 @@ export const strings = {
   en: {
     tabHome: 'Home',
     tabSearch: 'Search',
+    tabChat: 'Chat',
     tabOrders: 'Orders',
     tabCart: 'Cart',
     tabProfile: 'Profile',
@@ -75,6 +76,7 @@ export const strings = {
   ar: {
     tabHome: 'الرئيسية',
     tabSearch: 'بحث',
+    tabChat: 'الدردشة',
     tabOrders: 'الطلبات',
     tabCart: 'السلة',
     tabProfile: 'حسابي',

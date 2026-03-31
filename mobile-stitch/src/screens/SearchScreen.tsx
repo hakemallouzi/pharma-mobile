@@ -1,7 +1,8 @@
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as ImagePicker from 'expo-image-picker';
 import React, { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { imagesB2 } from '../assets/imagesBatch2';
@@ -24,10 +25,18 @@ const initialRecent = ['Paracetamol 500mg', 'Antiseptic Cream', 'Kids Multivitam
 
 function categoryChips(colors: ThemeColors) {
   return [
+    { icon: 'view-grid-plus-outline' as const, label: 'All Categories', category: 'All', color: colors.secondary },
     { icon: 'pill' as const, label: 'Medicines', color: colors.primary },
-    { icon: 'pill' as const, label: 'Vitamins', color: colors.tertiary },
-    { icon: 'baby-face-outline' as const, label: 'Baby Care', color: colors.secondary },
-    { icon: 'spa' as const, label: 'Skincare', color: colors.primary },
+    { icon: 'pill-multiple' as const, label: 'Vitamins', color: colors.tertiary },
+    { icon: 'baby-bottle-outline' as const, label: 'Baby Care', color: colors.secondary },
+    { icon: 'face-woman-outline' as const, label: 'Skincare', color: colors.primary },
+    { icon: 'cup-water' as const, label: 'Hydration', color: colors.primary },
+    { icon: 'stethoscope' as const, label: 'Medical Devices', color: colors.primary },
+    { icon: 'heart-pulse' as const, label: 'Heart Health', color: colors.primary },
+    { icon: 'brain' as const, label: 'Mental Wellness', color: colors.primary },
+    { icon: 'bone' as const, label: 'Bones & Joints', color: colors.primary },
+    { icon: 'bandage' as const, label: 'First Aid', color: colors.primary },
+    { icon: 'spray-bottle' as const, label: 'Personal Care', color: colors.primary },
   ];
 }
 
@@ -39,6 +48,55 @@ export function SearchScreen() {
   const cats = useMemo(() => categoryChips(colors), [colors]);
   const [q, setQ] = useState('');
   const [recentItems, setRecentItems] = useState(initialRecent);
+  const [prescriptionImageUri, setPrescriptionImageUri] = useState<string | null>(null);
+  const [medicineImageUri, setMedicineImageUri] = useState<string | null>(null);
+
+  const savePickedImage = (kind: 'prescription' | 'medicine', uri: string) => {
+    if (kind === 'prescription') setPrescriptionImageUri(uri);
+    else setMedicineImageUri(uri);
+  };
+
+  const pickFromLibrary = async (kind: 'prescription' | 'medicine') => {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert('Permission needed', 'Please allow photo library access to upload an image.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      quality: 0.9,
+    });
+    if (result.canceled || !result.assets.length) return;
+    savePickedImage(kind, result.assets[0].uri);
+  };
+
+  const pickFromCamera = async (kind: 'prescription' | 'medicine') => {
+    const perm = await ImagePicker.requestCameraPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert('Permission needed', 'Please allow camera access to take a photo.');
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      quality: 0.9,
+    });
+    if (result.canceled || !result.assets.length) return;
+    savePickedImage(kind, result.assets[0].uri);
+  };
+
+  const pickImage = (kind: 'prescription' | 'medicine') => {
+    Alert.alert('Select image source', 'Choose how you want to upload.', [
+      { text: 'Take Photo', onPress: () => pickFromCamera(kind) },
+      { text: 'Choose from Gallery', onPress: () => pickFromLibrary(kind) },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
+
+  const contactSpecialistPharmacist = () => {
+    navigation.navigate('SpecialistChat', { topic: 'prescription' });
+  };
 
   return (
     <View style={styles.root}>
@@ -72,6 +130,49 @@ export function SearchScreen() {
             <MaterialCommunityIcons name="barcode-scan" size={24} color={colors.primary} />
           </Pressable>
         </View>
+        <View style={styles.uploadRow}>
+          <Pressable style={styles.uploadBtn} onPress={contactSpecialistPharmacist}>
+            <MaterialCommunityIcons name="face-agent" size={18} color={colors.primary} />
+            <Text style={styles.uploadBtnTxt}>Prescription via specialist</Text>
+          </Pressable>
+          <Pressable style={styles.uploadBtn} onPress={() => pickImage('medicine')}>
+            <MaterialCommunityIcons name="pill" size={18} color={colors.primary} />
+            <Text style={styles.uploadBtnTxt}>Upload medicine image</Text>
+          </Pressable>
+        </View>
+        <Text style={styles.uploadHint}>For prescriptions, contact our specialist pharmacist for guidance.</Text>
+        {prescriptionImageUri || medicineImageUri ? (
+          <View style={styles.uploadPreviewRow}>
+            {prescriptionImageUri ? (
+              <View style={styles.uploadPreviewItem}>
+                <Image source={{ uri: prescriptionImageUri }} style={styles.uploadPreviewImg} contentFit="cover" />
+                <Text style={styles.uploadPreviewTxt}>Prescription ready</Text>
+              </View>
+            ) : null}
+            {medicineImageUri ? (
+              <View style={styles.uploadPreviewItem}>
+                <Image source={{ uri: medicineImageUri }} style={styles.uploadPreviewImg} contentFit="cover" />
+                <Text style={styles.uploadPreviewTxt}>Medicine image ready</Text>
+              </View>
+            ) : null}
+          </View>
+        ) : null}
+        <View style={styles.orderAgainHead}>
+          <Text style={styles.smallTitle}>Order Again</Text>
+          <Pressable onPress={() => setRecentItems([])}>
+            <Text style={styles.clear}>Clear All</Text>
+          </Pressable>
+        </View>
+        {recentItems.map((r) => (
+          <Pressable
+            key={r}
+            style={styles.recentRow}
+            onPress={() => navigation.navigate('ProductList', { category: 'All', query: r })}
+          >
+            <MaterialCommunityIcons name="history" size={18} color={colors.outline} />
+            <Text style={styles.recentTxt}>{r}</Text>
+          </Pressable>
+        ))}
 
         <View style={styles.sectionHead}>
           <Text style={styles.sectionTitle}>Categories</Text>
@@ -84,9 +185,14 @@ export function SearchScreen() {
             <Pressable
               key={item.label}
               style={styles.catCard}
-              onPress={() => navigation.navigate('ProductList', { category: item.label })}
+              onPress={() => navigation.navigate('ProductList', { category: item.category ?? item.label })}
             >
-              <View style={[styles.catIcon, { backgroundColor: `${item.color}22` }]}>
+              <View
+                style={[
+                  styles.catIcon,
+                  { backgroundColor: item.category === 'All' ? `${colors.secondary}30` : `${item.color}22` },
+                ]}
+              >
                 <MaterialCommunityIcons name={item.icon} size={26} color={item.color} />
               </View>
               <Text style={styles.catLabel}>{item.label}</Text>
@@ -110,38 +216,9 @@ export function SearchScreen() {
             </View>
           </View>
           <View style={{ flex: 1 }}>
-            <View style={styles.recentHead}>
-              <Text style={styles.smallTitle}>Recent</Text>
-              <Pressable onPress={() => setRecentItems([])}>
-                <Text style={styles.clear}>Clear All</Text>
-              </Pressable>
-            </View>
-            {recentItems.map((r) => (
-              <Pressable
-                key={r}
-                style={styles.recentRow}
-                onPress={() => navigation.navigate('ProductList', { category: 'All', query: r })}
-              >
-                <MaterialCommunityIcons name="history" size={18} color={colors.outline} />
-                <Text style={styles.recentTxt}>{r}</Text>
-              </Pressable>
-            ))}
           </View>
         </View>
 
-        <LinearGradient
-          colors={[colors.surfaceContainerLow, colors.surfaceContainer]}
-          style={styles.promo}
-        >
-          <Image source={{ uri: imagesB2.searchBanner }} style={styles.promoImg} contentFit="cover" />
-          <View style={styles.promoInner}>
-            <Text style={styles.promoBadge}>Health Essentials</Text>
-            <Text style={styles.promoTitle}>Refill your regular prescriptions effortlessly</Text>
-            <Pressable style={styles.promoBtn} onPress={() => navigation.navigate('BarcodeScan')}>
-              <Text style={styles.promoBtnText}>Scan Prescription</Text>
-            </Pressable>
-          </View>
-        </LinearGradient>
       </ScrollView>
     </View>
   );
@@ -162,6 +239,34 @@ function createSearchStyles(c: ThemeColors, isDark: boolean) {
     },
     searchIcon: { marginLeft: 4 },
     searchInput: { flex: 1, color: c.onSurface, fontSize: 16 },
+    uploadRow: { flexDirection: 'row', gap: 10, marginTop: 12 },
+    uploadBtn: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      backgroundColor: c.surfaceContainerLow,
+      borderWidth: 1,
+      borderColor: c.outlineVariant,
+      borderRadius: 12,
+      paddingVertical: 10,
+      paddingHorizontal: 10,
+    },
+    uploadBtnTxt: { fontSize: 12, fontWeight: '700', color: c.onSurface },
+    uploadHint: { marginTop: 8, fontSize: 11, color: c.onSurfaceVariant },
+    uploadPreviewRow: { flexDirection: 'row', gap: 10, marginTop: 10 },
+    uploadPreviewItem: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      backgroundColor: c.surfaceContainerLow,
+      borderRadius: 12,
+      padding: 8,
+    },
+    uploadPreviewImg: { width: 28, height: 28, borderRadius: 6, backgroundColor: c.surfaceContainerHigh },
+    uploadPreviewTxt: { fontSize: 11, fontWeight: '700', color: c.onSurfaceVariant },
     sectionHead: {
       flexDirection: 'row',
       justifyContent: 'space-between',
@@ -171,24 +276,33 @@ function createSearchStyles(c: ThemeColors, isDark: boolean) {
     },
     sectionTitle: { fontSize: 18, fontWeight: '800', color: c.onSurface },
     link: { color: c.primary, fontWeight: '700', fontSize: 14 },
-    catGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+    catGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 8 },
     catCard: {
-      width: '47%',
-      backgroundColor: c.surfaceContainerHigh,
-      borderRadius: 18,
-      padding: 18,
-      marginBottom: 4,
+      width: '22%',
+      alignItems: 'center',
     },
     catIcon: {
-      width: 48,
-      height: 48,
-      borderRadius: 12,
+      width: 64,
+      height: 64,
+      borderRadius: 16,
       alignItems: 'center',
       justifyContent: 'center',
-      marginBottom: 10,
+      marginBottom: 8,
     },
-    catLabel: { fontWeight: '700', color: c.onSurface },
+    catLabel: {
+      fontSize: 11,
+      fontWeight: '600',
+      color: c.onSurfaceVariant,
+      textTransform: 'uppercase',
+      textAlign: 'center',
+    },
     twoCol: { marginTop: 28, gap: 24 },
+    orderAgainHead: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginTop: 14,
+    },
     smallTitle: {
       fontSize: 11,
       fontWeight: '800',
@@ -211,35 +325,5 @@ function createSearchStyles(c: ThemeColors, isDark: boolean) {
     clear: { fontSize: 11, color: c.error, fontWeight: '700' },
     recentRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 },
     recentTxt: { flex: 1, color: c.onSurface },
-    promo: {
-      marginTop: 32,
-      borderRadius: 28,
-      overflow: 'hidden',
-      minHeight: 180,
-    },
-    promoImg: { ...StyleSheet.absoluteFillObject, opacity: 0.35 },
-    promoInner: { padding: 24, maxWidth: '70%' },
-    promoBadge: {
-      alignSelf: 'flex-start',
-      backgroundColor: c.tabPillActive,
-      color: c.primary,
-      fontSize: 10,
-      fontWeight: '800',
-      letterSpacing: 2,
-      paddingHorizontal: 10,
-      paddingVertical: 4,
-      borderRadius: 999,
-      marginBottom: 8,
-      overflow: 'hidden',
-    },
-    promoTitle: { fontSize: 22, fontWeight: '800', color: c.onSurface, lineHeight: 28, marginBottom: 12 },
-    promoBtn: {
-      alignSelf: 'flex-start',
-      backgroundColor: c.primary,
-      paddingHorizontal: 20,
-      paddingVertical: 10,
-      borderRadius: 999,
-    },
-    promoBtnText: { color: c.onPrimary, fontWeight: '800', fontSize: 13 },
   });
 }

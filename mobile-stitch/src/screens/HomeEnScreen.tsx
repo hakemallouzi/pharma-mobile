@@ -1,7 +1,7 @@
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useMemo } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Alert, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { images } from '../assets/images';
@@ -13,16 +13,40 @@ import { screenRootBg } from '../theme/screenBackground';
 import { useTheme } from '../theme/ThemeContext';
 
 const categories = [
+  { icon: 'view-grid-plus-outline' as const, label: 'All Categories', category: 'All', greenBg: true },
   { icon: 'pill' as const, label: 'Medicines' },
   { icon: 'pill-multiple' as const, label: 'Vitamins' },
   { icon: 'baby-bottle-outline' as const, label: 'Baby Care' },
-  { icon: 'cup-water' as const, label: 'Personal' },
-  { icon: 'stethoscope' as const, label: 'Medical' },
+  { icon: 'face-woman-outline' as const, label: 'Skincare' },
+  { icon: 'cup-water' as const, label: 'Hydration' },
+  { icon: 'stethoscope' as const, label: 'Medical Devices' },
+  { icon: 'heart-pulse' as const, label: 'Heart Health' },
+  { icon: 'brain' as const, label: 'Mental Wellness' },
+  { icon: 'bone' as const, label: 'Bones & Joints' },
+  { icon: 'bandage' as const, label: 'First Aid' },
+  { icon: 'spray-bottle' as const, label: 'Personal Care' },
 ];
 
-/** Gap between trending product cards + target peek of the third card (scroll affordance). */
-const TREND_GAP = 16;
-const TREND_PEEK = 52;
+const PROMOTIONS = [
+  {
+    title: 'Full Body Health Checkup',
+    sub: 'Professional diagnostic tests at home with 20% discount.',
+    button: 'Book Now',
+    image: images.homeEnBanner,
+  },
+  {
+    title: 'Vitamin Essentials Bundle',
+    sub: 'Daily core vitamins with free same-day delivery for limited time.',
+    button: 'Shop Bundle',
+    image: images.product1,
+  },
+  {
+    title: 'Skin & Wellness Care Week',
+    sub: 'Top skincare and wellness picks with exclusive member pricing.',
+    button: 'Explore Deals',
+    image: images.product2,
+  },
+];
 
 export function HomeEnScreen() {
   const insets = useSafeAreaInsets();
@@ -31,11 +55,25 @@ export function HomeEnScreen() {
   const nav = useAppNavigation();
   const { colors, isDark } = useTheme();
   const styles = useMemo(() => createHomeEnStyles(colors, isDark), [colors, isDark]);
+  const [showAllCategories, setShowAllCategories] = useState(true);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const promoRef = useRef<ScrollView>(null);
+  const [promoViewportWidth, setPromoViewportWidth] = useState(0);
+  const promoCardWidth = promoViewportWidth || Math.max(280, winW - SCREEN_CONTENT_GUTTER);
+  const [promoIndex, setPromoIndex] = useState(0);
 
-  const trendingCardW = Math.max(
-    132,
-    Math.floor((winW - SCREEN_CONTENT_GUTTER - TREND_PEEK - TREND_GAP * 2) / 2)
-  );
+  useEffect(() => {
+    const id = setInterval(() => {
+      setPromoIndex((prev) => {
+        const next = (prev + 1) % PROMOTIONS.length;
+        if (promoCardWidth > 0) {
+          promoRef.current?.scrollTo({ x: next * promoCardWidth, animated: true });
+        }
+        return next;
+      });
+    }, 4500);
+    return () => clearInterval(id);
+  }, [promoCardWidth]);
 
   return (
     <View style={styles.root}>
@@ -51,55 +89,105 @@ export function HomeEnScreen() {
           <Pressable style={styles.iconCircle} onPress={() => Alert.alert('Notifications', 'No new alerts.')}>
             <MaterialCommunityIcons name="bell-outline" size={22} color={colors.onSurface} />
           </Pressable>
-          <Pressable style={styles.iconCirclePrimary} onPress={() => nav.navigate('Main', { screen: 'Profile' })}>
-            <MaterialCommunityIcons name="account" size={22} color={colors.primary} />
+          <Pressable style={styles.iconCirclePrimary} onPress={() => setMenuOpen(true)}>
+            <MaterialCommunityIcons name="menu" size={22} color={colors.primary} />
           </Pressable>
         </View>
       </View>
 
       <ScreenScroll bottomInset={88}>
+        <View
+          style={styles.promoCarousel}
+          onLayout={(e) => setPromoViewportWidth(Math.round(e.nativeEvent.layout.width))}
+        >
+          <ScrollView
+            ref={promoRef}
+            style={styles.promoPager}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onMomentumScrollEnd={(e) => {
+              if (promoCardWidth <= 0) return;
+              const next = Math.round(e.nativeEvent.contentOffset.x / promoCardWidth);
+              setPromoIndex(Math.max(0, Math.min(PROMOTIONS.length - 1, next)));
+            }}
+          >
+            {PROMOTIONS.map((p) => (
+              <LinearGradient
+                key={p.title}
+                colors={[colors.primaryContainer, colors.surfaceContainerLow]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={[styles.promo, { width: promoCardWidth }]}
+              >
+                <View style={styles.promoText}>
+                  <Text style={styles.promoBadge}>{t.promotion}</Text>
+                  <Text style={styles.promoTitle}>{p.title}</Text>
+                  <Text style={styles.promoSub}>{p.sub}</Text>
+                  <Pressable style={styles.promoBtn} onPress={() => nav.navigate('Main', { screen: 'Cart' })}>
+                    <Text style={styles.promoBtnText}>{p.button}</Text>
+                  </Pressable>
+                </View>
+                <Image source={{ uri: p.image }} style={styles.promoImg} contentFit="cover" />
+              </LinearGradient>
+            ))}
+          </ScrollView>
+          <View style={styles.promoDots}>
+            {PROMOTIONS.map((_, i) => (
+              <View key={i} style={[styles.promoDot, i === promoIndex && styles.promoDotActive]} />
+            ))}
+          </View>
+        </View>
+
         <View style={styles.sectionHead}>
           <Text style={styles.sectionTitle}>{t.categories}</Text>
-          <Pressable onPress={() => nav.navigate('ProductList', { category: 'All' })}>
-            <Text style={styles.link}>{t.seeAll}</Text>
+          <Pressable onPress={() => setShowAllCategories((v) => !v)}>
+            <View style={styles.linkRow}>
+              <Text style={styles.link}>{showAllCategories ? 'Show Less' : t.seeAll}</Text>
+              <MaterialCommunityIcons
+                name={showAllCategories ? 'chevron-up' : 'chevron-down'}
+                size={18}
+                color={colors.primary}
+              />
+            </View>
           </Pressable>
         </View>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={[styles.hScroll, styles.hScrollBleed]}
-          contentContainerStyle={styles.hScrollBleedContent}
-        >
-          {categories.map((item) => (
-            <Pressable
-              key={item.label}
-              style={styles.catItem}
-              onPress={() => nav.navigate('ProductList', { category: item.label })}
-            >
-              <View style={styles.catIcon}>
-                <MaterialCommunityIcons name={item.icon} size={28} color={colors.primary} />
-              </View>
-              <Text style={styles.catLabel}>{item.label}</Text>
-            </Pressable>
-          ))}
-        </ScrollView>
-
-        <LinearGradient
-          colors={[colors.primaryContainer, colors.surfaceContainerLow]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.promo}
-        >
-          <View style={styles.promoText}>
-            <Text style={styles.promoBadge}>{t.promotion}</Text>
-            <Text style={styles.promoTitle}>Full Body Health Checkup</Text>
-            <Text style={styles.promoSub}>Professional diagnostic tests at home with 20% discount.</Text>
-            <Pressable style={styles.promoBtn} onPress={() => nav.navigate('Main', { screen: 'Cart' })}>
-              <Text style={styles.promoBtnText}>{t.bookNow}</Text>
-            </Pressable>
+        {showAllCategories ? (
+          <View style={styles.catGrid}>
+            {categories.map((item) => (
+              <Pressable
+                key={item.label}
+                style={styles.catGridItem}
+                onPress={() => nav.navigate('ProductList', { category: item.category ?? item.label })}
+              >
+                <View style={[styles.catIcon, item.greenBg && { backgroundColor: `${colors.secondary}30` }]}>
+                  <MaterialCommunityIcons name={item.icon} size={28} color={colors.primary} />
+                </View>
+                <Text style={styles.catLabel}>{item.label}</Text>
+              </Pressable>
+            ))}
           </View>
-          <Image source={{ uri: images.homeEnBanner }} style={styles.promoImg} contentFit="cover" />
-        </LinearGradient>
+        ) : (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={[styles.hScroll, styles.hScrollBleed]}
+            contentContainerStyle={styles.hScrollBleedContent}
+          >
+            {categories.map((item) => (
+              <Pressable
+                key={item.label}
+                style={styles.catItem}
+                onPress={() => nav.navigate('ProductList', { category: item.category ?? item.label })}
+              >
+                <View style={[styles.catIcon, item.greenBg && { backgroundColor: `${colors.secondary}30` }]}>
+                  <MaterialCommunityIcons name={item.icon} size={28} color={colors.primary} />
+                </View>
+                <Text style={styles.catLabel}>{item.label}</Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+        )}
 
         <View style={styles.sectionHead}>
           <Text style={styles.sectionTitle}>{t.nearbyPharmacies}</Text>
@@ -114,7 +202,15 @@ export function HomeEnScreen() {
           rating="4.8"
           dist="1.2 km"
           image={images.nearby1}
-          onPress={() => nav.navigate('PharmacyList')}
+          onPress={() =>
+            nav.navigate('PharmacyList', {
+              focusMap: true,
+              pharmacyName: 'The Health Atelier',
+              pharmacyInfo: 'Open now · 4.8 rating · 15-20 mins delivery',
+              latitude: 24.7136,
+              longitude: 46.6753,
+            })
+          }
         />
         <NearbyCard
           styles={styles}
@@ -123,59 +219,75 @@ export function HomeEnScreen() {
           rating="4.6"
           dist="2.5 km"
           image={images.nearby2}
-          onPress={() => nav.navigate('PharmacyList')}
+          onPress={() =>
+            nav.navigate('PharmacyList', {
+              focusMap: true,
+              pharmacyName: 'Evergreen Care',
+              pharmacyInfo: 'Open now · 4.6 rating · 25-35 mins delivery',
+              latitude: 24.7308,
+              longitude: 46.6505,
+            })
+          }
         />
 
-        <View style={styles.sectionHead}>
-          <Text style={styles.sectionTitle}>{t.trendingHealth}</Text>
-          <Pressable onPress={() => nav.navigate('ProductList', { category: 'All' })}>
-            <Text style={styles.link}>{t.viewAll}</Text>
-          </Pressable>
-        </View>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.trendingHScroll}
-          contentContainerStyle={styles.trendingHScrollContent}
-        >
-          <ProductCard
-            styles={styles}
-            colors={colors}
-            cardWidth={trendingCardW}
-            title="Vitamin C 1000mg"
-            category="Vitamins"
-            price="$24.00"
-            image={images.product1}
-            onPress={() => nav.navigate('ProductList', { category: 'Vitamins' })}
-            onAddToCart={() => nav.navigate('Main', { screen: 'Cart' })}
-          />
-          <ProductCard
-            styles={styles}
-            colors={colors}
-            cardWidth={trendingCardW}
-            title="Hyaluronic Gel"
-            category="Skin Care"
-            price="$32.50"
-            image={images.product2}
-            onPress={() => nav.navigate('ProductList', { category: 'Skincare' })}
-            onAddToCart={() => nav.navigate('Main', { screen: 'Cart' })}
-          />
-          <ProductCard
-            styles={styles}
-            colors={colors}
-            cardWidth={trendingCardW}
-            title="KN95 Protective"
-            category="Protection"
-            price="$15.99"
-            image={images.product3}
-            onPress={() => nav.navigate('ProductList', { category: 'Medicines' })}
-            onAddToCart={() => nav.navigate('Main', { screen: 'Cart' })}
-          />
-        </ScrollView>
       </ScreenScroll>
+      <Modal visible={menuOpen} transparent animationType="fade" onRequestClose={() => setMenuOpen(false)}>
+        <Pressable style={styles.drawerBackdrop} onPress={() => setMenuOpen(false)} />
+        <View style={[styles.drawerSheet, { paddingTop: insets.top + 10 }]}>
+          <View style={styles.drawerHead}>
+            <Text style={styles.drawerTitle}>Menu</Text>
+            <Pressable hitSlop={8} onPress={() => setMenuOpen(false)}>
+              <MaterialCommunityIcons name="close" size={22} color={colors.onSurface} />
+            </Pressable>
+          </View>
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.drawerContent}>
+            <Text style={styles.drawerSection}>{t.profileSectionClinical}</Text>
+            <MenuItem label={t.profilePrescriptions} onPress={() => { setMenuOpen(false); nav.navigate('ProductList', { category: 'Medicines' }); }} />
+            <MenuItem label={t.profileLabResults} onPress={() => { setMenuOpen(false); nav.navigate('OrderDetail', { orderId: 'LAB-RESULTS' }); }} />
+            <MenuItem label={t.profileCareReminders} onPress={() => { setMenuOpen(false); nav.navigate('Main', { screen: 'Home' }); }} />
+
+            <Text style={styles.drawerSection}>{t.profileSectionOrders}</Text>
+            <MenuItem label={t.profileOrders} onPress={() => { setMenuOpen(false); nav.navigate('Main', { screen: 'Chat' }); }} />
+            <MenuItem label={t.profileCart} onPress={() => { setMenuOpen(false); nav.navigate('Main', { screen: 'Cart' }); }} />
+            <MenuItem label={t.profileAddresses} onPress={() => { setMenuOpen(false); nav.navigate('Addresses'); }} />
+            <MenuItem label={t.profilePayment} onPress={() => { setMenuOpen(false); nav.navigate('Checkout'); }} />
+            <MenuItem label={t.profilePharmacies} onPress={() => { setMenuOpen(false); nav.navigate('PharmacyList'); }} />
+
+            <Text style={styles.drawerSection}>{t.profileSectionSupport}</Text>
+            <MenuItem label={t.profileNotifications} onPress={() => { setMenuOpen(false); Alert.alert(t.profileNotifications, 'Notification preferences would be managed here.'); }} />
+            <MenuItem label={t.profileHelp} onPress={() => { setMenuOpen(false); Linking.openURL('mailto:support@vitalis.health').catch(() => {}); }} />
+            <MenuItem label={t.profilePrivacy} onPress={() => { setMenuOpen(false); Linking.openURL('https://vitalis.health/privacy').catch(() => {}); }} />
+            <MenuItem label={t.profileTerms} onPress={() => { setMenuOpen(false); Linking.openURL('https://vitalis.health/terms').catch(() => {}); }} />
+          </ScrollView>
+        </View>
+      </Modal>
     </View>
   );
 }
+
+function MenuItem({ label, onPress }: { label: string; onPress: () => void }) {
+  const { colors } = useTheme();
+  return (
+    <Pressable style={[stylesMenu.row, { backgroundColor: colors.surfaceContainerLow, borderColor: colors.outlineVariant }]} onPress={onPress}>
+      <Text style={[stylesMenu.txt, { color: colors.onSurface }]}>{label}</Text>
+      <MaterialCommunityIcons name="chevron-right" size={20} color={colors.chevronMuted} />
+    </Pressable>
+  );
+}
+
+const stylesMenu = StyleSheet.create({
+  row: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    marginBottom: 8,
+  },
+  txt: { fontSize: 15, fontWeight: '600' },
+});
 
 function NearbyCard({
   styles,
@@ -209,44 +321,6 @@ function NearbyCard({
           <Text style={styles.dot}>•</Text>
           <Text style={styles.metaText}>{dist}</Text>
         </View>
-      </View>
-    </Pressable>
-  );
-}
-
-function ProductCard({
-  styles,
-  colors,
-  cardWidth,
-  title,
-  category,
-  price,
-  image,
-  onPress,
-  onAddToCart,
-}: {
-  styles: ReturnType<typeof createHomeEnStyles>;
-  colors: ThemeColors;
-  cardWidth?: number;
-  title: string;
-  category: string;
-  price: string;
-  image: string;
-  onPress?: () => void;
-  onAddToCart?: () => void;
-}) {
-  return (
-    <Pressable style={[styles.product, cardWidth != null && { width: cardWidth }]} onPress={onPress}>
-      <Image source={{ uri: image }} style={styles.productImg} contentFit="cover" />
-      <Text style={styles.productTitle} numberOfLines={1}>
-        {title}
-      </Text>
-      <Text style={styles.productCat}>{category}</Text>
-      <View style={styles.productRow}>
-        <Text style={styles.price}>{price}</Text>
-        <Pressable style={styles.addBtn} onPress={() => onAddToCart?.()}>
-          <MaterialCommunityIcons name="plus" size={20} color={colors.onPrimary} />
-        </Pressable>
       </View>
     </Pressable>
   );
@@ -292,6 +366,37 @@ function createHomeEnStyles(c: ThemeColors, isDark: boolean) {
       alignItems: 'center',
       justifyContent: 'center',
     },
+    drawerBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.34)' },
+    drawerSheet: {
+      position: 'absolute',
+      top: 0,
+      bottom: 0,
+      right: 0,
+      width: '84%',
+      maxWidth: 360,
+      backgroundColor: c.surface,
+      borderLeftWidth: StyleSheet.hairlineWidth,
+      borderLeftColor: c.outlineVariant,
+      paddingHorizontal: 16,
+    },
+    drawerHead: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingBottom: 12,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: c.outlineVariant,
+    },
+    drawerTitle: { fontSize: 18, fontWeight: '800', color: c.onSurface },
+    drawerContent: { paddingVertical: 10, gap: 6, paddingBottom: 42 },
+    drawerSection: {
+      marginTop: 12,
+      fontSize: 11,
+      fontWeight: '800',
+      letterSpacing: 1.3,
+      color: c.mutedIcon,
+      textTransform: 'uppercase',
+    },
     sectionHead: {
       flexDirection: 'row',
       justifyContent: 'space-between',
@@ -300,18 +405,16 @@ function createHomeEnStyles(c: ThemeColors, isDark: boolean) {
     },
     sectionTitle: { fontSize: 20, fontWeight: '700', color: c.onSurface },
     link: { fontSize: 14, fontWeight: '600', color: c.primary },
+    linkRow: { flexDirection: 'row', alignItems: 'center', gap: 2 },
     hScroll: { marginBottom: 24 },
     hScrollBleed: { marginHorizontal: -SCREEN_CONTENT_GUTTER },
     hScrollBleedContent: {
       paddingLeft: SCREEN_CONTENT_GUTTER,
       paddingRight: SCREEN_CONTENT_GUTTER,
     },
-    trendingHScroll: { marginBottom: 24, marginHorizontal: -SCREEN_CONTENT_GUTTER },
-    trendingHScrollContent: {
-      paddingLeft: SCREEN_CONTENT_GUTTER,
-      paddingRight: SCREEN_CONTENT_GUTTER,
-    },
     catItem: { alignItems: 'center', marginRight: 16, width: 72 },
+    catGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 24 },
+    catGridItem: { alignItems: 'center', width: '22%' },
     catIcon: {
       width: 64,
       height: 64,
@@ -332,10 +435,22 @@ function createHomeEnStyles(c: ThemeColors, isDark: boolean) {
       borderRadius: 24,
       padding: 24,
       minHeight: 200,
-      marginBottom: 28,
       overflow: 'hidden',
       flexDirection: 'row',
       alignItems: 'center',
+    },
+    promoCarousel: { marginBottom: 28, overflow: 'hidden' },
+    promoPager: { width: '100%' },
+    promoDots: { flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: 10 },
+    promoDot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+      backgroundColor: c.outlineVariant,
+    },
+    promoDotActive: {
+      width: 16,
+      backgroundColor: c.primary,
     },
     promoText: { flex: 1, zIndex: 2, maxWidth: '68%' },
     promoBadge: {
@@ -407,39 +522,5 @@ function createHomeEnStyles(c: ThemeColors, isDark: boolean) {
     nearbyMeta: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },
     metaText: { fontSize: 12, color: c.onSurfaceVariant },
     dot: { color: c.outline, fontSize: 12 },
-    product: {
-      width: 176,
-      backgroundColor: c.surfaceContainerLow,
-      borderRadius: 32,
-      padding: 16,
-      marginRight: 16,
-    },
-    productImg: {
-      width: '100%',
-      aspectRatio: 1,
-      borderRadius: 16,
-      marginBottom: 12,
-      backgroundColor: c.surfaceContainerHigh,
-    },
-    productTitle: { fontSize: 14, fontWeight: '700', color: c.onSurface },
-    productCat: {
-      fontSize: 10,
-      fontWeight: '700',
-      color: c.outline,
-      textTransform: 'uppercase',
-      letterSpacing: 1,
-      marginTop: 4,
-      marginBottom: 12,
-    },
-    productRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-    price: { fontSize: 16, fontWeight: '700', color: c.primary },
-    addBtn: {
-      width: 32,
-      height: 32,
-      borderRadius: 16,
-      backgroundColor: c.primary,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
   });
 }

@@ -11,6 +11,9 @@ import { CheckoutScreen } from '../screens/CheckoutScreen';
 import { OrderDetailScreen } from '../screens/OrderDetailScreen';
 import { BarcodeScanScreen } from '../screens/BarcodeScanScreen';
 import { PharmacyListScreen } from '../screens/PharmacyListScreen';
+import { PharmacyDetailScreen } from '../screens/PharmacyDetailScreen';
+import { SpecialistChatScreen } from '../screens/SpecialistChatScreen';
+import { ProductDetailScreen } from '../screens/ProductDetailScreen';
 import { ProductListScreen } from '../screens/ProductListScreen';
 import type { RootStackParamList } from './navigationTypes';
 import { MainTabs } from './MainTabs';
@@ -18,14 +21,15 @@ import { MainTabs } from './MainTabs';
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export function RootNavigator() {
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const screenOptions = useMemo(
     () => ({
       headerShown: false as const,
-      contentStyle: { backgroundColor: isDark ? 'transparent' : colors.background },
+      // Keep scene opaque to avoid previous/next screens showing through during transitions.
+      contentStyle: { backgroundColor: colors.background },
       animation: 'slide_from_right' as const,
     }),
-    [colors.background, isDark]
+    [colors.background]
   );
 
   return (
@@ -40,7 +44,10 @@ export function RootNavigator() {
       <Stack.Screen name="Checkout" component={CheckoutScreen} />
       <Stack.Screen name="OrderDetail" component={OrderDetailScreen} />
       <Stack.Screen name="ProductList" component={ProductListScreen} />
+      <Stack.Screen name="ProductDetail" component={ProductDetailScreen} />
       <Stack.Screen name="PharmacyList" component={PharmacyListScreen} />
+      <Stack.Screen name="PharmacyDetail" component={PharmacyDetailScreen} />
+      <Stack.Screen name="SpecialistChat" component={SpecialistChatScreen} />
       <Stack.Screen
         name="BarcodeScan"
         component={BarcodeScanScreen}

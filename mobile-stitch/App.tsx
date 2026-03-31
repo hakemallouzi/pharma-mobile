@@ -4,6 +4,7 @@ import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from './src/context/AuthContext';
+import { CartProvider } from './src/context/CartContext';
 import { LocaleProvider } from './src/context/LocaleContext';
 import { RootNavigator } from './src/navigation/RootNavigator';
 import {
@@ -39,9 +40,11 @@ export default function App() {
       <ThemeProvider>
         <LocaleProvider>
           <AuthProvider>
-            <NavigationContainer>
-              <ThemedRoot />
-            </NavigationContainer>
+            <CartProvider>
+              <NavigationContainer>
+                <ThemedRoot />
+              </NavigationContainer>
+            </CartProvider>
           </AuthProvider>
         </LocaleProvider>
       </ThemeProvider>

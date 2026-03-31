@@ -17,12 +17,17 @@ import { useAppNavigation } from '../navigation/useAppNavigation';
 import { SCREEN_CONTENT_GUTTER } from '../components/ScreenScroll';
 import { images } from '../assets/images';
 import { useLocale } from '../context/LocaleContext';
+import type { RootStackParamList } from '../navigation/navigationTypes';
 import type { ThemeColors } from '../theme/palettes';
 import { useTheme } from '../theme/ThemeContext';
 
 const filterKeys = ['all', 'near', 'open', 'rated', '24h'] as const;
 
-export function PharmacyListArScreen() {
+export function PharmacyListArScreen({
+  mapParams: _mapParams,
+}: {
+  mapParams?: RootStackParamList['PharmacyList'];
+}) {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const rootNav = useAppNavigation();
