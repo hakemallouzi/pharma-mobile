@@ -215,9 +215,6 @@ export function PharmacyListArScreen({
           <Pressable hitSlop={8} onPress={() => rootNav.navigate('Main', { screen: 'Search' })}>
             <MaterialCommunityIcons name="magnify" size={24} color={colors.primary} />
           </Pressable>
-          <Pressable hitSlop={8} onPress={() => rootNav.navigate('Main', { screen: 'Profile' })}>
-            <MaterialCommunityIcons name="dots-vertical" size={24} color={colors.primary} />
-          </Pressable>
         </View>
       </View>
 
@@ -262,7 +259,14 @@ function createPharmacyListArStyles(c: ThemeColors) {
       backgroundColor: 'transparent',
     },
     headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 16 },
-    headerRight: { flexDirection: 'row', gap: 8 },
+    headerRight: { flexDirection: 'row', gap: 8, alignItems: 'center' },
+    headerAvatar: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: c.outlineVariant,
+    },
     title: {
       fontSize: 18,
       fontWeight: '800',

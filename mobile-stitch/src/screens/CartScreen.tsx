@@ -5,6 +5,7 @@ import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCart } from '../context/CartContext';
+import { useLocale } from '../context/LocaleContext';
 import { useAppNavigation } from '../navigation/useAppNavigation';
 import { ClinicalHeader } from '../components/ClinicalHeader';
 import type { ThemeColors } from '../theme/palettes';
@@ -14,6 +15,7 @@ import { useTheme } from '../theme/ThemeContext';
 export function CartScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useAppNavigation();
+  const { t, locale, isRTL } = useLocale();
   const { colors, isDark } = useTheme();
   const styles = useMemo(() => createCartStyles(colors, isDark), [colors, isDark]);
   const { lines, removeItem, setQty } = useCart();
@@ -24,43 +26,46 @@ export function CartScreen() {
   const total = subtotal + tax;
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { direction: isRTL ? 'rtl' : 'ltr' }]}>
       <ClinicalHeader
-        title="Your Cart"
-        right={
-          <Pressable hitSlop={8}>
-            <MaterialCommunityIcons name="dots-vertical" size={24} color={colors.primary} />
-          </Pressable>
-        }
+        title={t.cartTitle}
       />
       <ScrollView contentContainerStyle={{ paddingBottom: 120 + insets.bottom, paddingHorizontal: 24 }}>
-        <Text style={styles.pageTitle}>Review Your Items</Text>
-        <Text style={styles.pageSub}>{lines.length} items in your medical sanctuary basket.</Text>
+        <Text style={[styles.pageTitle, isRTL && styles.txtRight]}>{locale === 'ar' ? 'راجع مشترياتك' : 'Review Your Items'}</Text>
+        <Text style={[styles.pageSub, isRTL && styles.txtRight]}>
+          {locale === 'ar'
+            ? `${lines.length} عنصر في سلتك`
+            : `${lines.length} items in your medical sanctuary basket.`}
+        </Text>
 
         {lines.length === 0 ? (
           <View style={styles.emptyBox}>
             <MaterialCommunityIcons name="cart-outline" size={34} color={colors.outline} />
-            <Text style={styles.emptyTitle}>Your cart is empty</Text>
-            <Text style={styles.emptySub}>Add products from categories and they will appear here.</Text>
+            <Text style={styles.emptyTitle}>{t.cartEmpty}</Text>
+            <Text style={styles.emptySub}>
+              {locale === 'ar'
+                ? 'أضف منتجات من الأقسام وستظهر هنا.'
+                : 'Add products from categories and they will appear here.'}
+            </Text>
           </View>
         ) : null}
 
         {lines.map((l) => (
-          <View key={l.id} style={styles.line}>
-            <View style={styles.strip} />
+          <View key={l.id} style={[styles.line, isRTL && styles.rowReverse]}>
+            <View style={[styles.strip, isRTL && styles.stripRtl]} />
             <Image source={{ uri: l.image }} style={styles.thumb} contentFit="cover" />
             <View style={styles.lineBody}>
-              <View style={styles.lineTop}>
+              <View style={[styles.lineTop, isRTL && styles.rowReverse]}>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.lineTitle}>{l.title}</Text>
-                  <Text style={styles.lineSub}>{l.sub}</Text>
+                  <Text style={[styles.lineTitle, isRTL && styles.txtRight]}>{l.title}</Text>
+                  <Text style={[styles.lineSub, isRTL && styles.txtRight]}>{l.sub}</Text>
                 </View>
                 <Pressable onPress={() => removeItem(l.id)}>
                   <MaterialCommunityIcons name="delete-outline" size={22} color={colors.onSurfaceVariant} />
                 </Pressable>
               </View>
-              <View style={styles.lineFoot}>
-                <View style={styles.stepper}>
+              <View style={[styles.lineFoot, isRTL && styles.rowReverse]}>
+                <View style={[styles.stepper, isRTL && styles.rowReverse]}>
                   <Pressable onPress={() => setQty(l.id, -1)} style={styles.stepBtn}>
                     <MaterialCommunityIcons name="minus" size={18} color={colors.primary} />
                   </Pressable>
@@ -69,7 +74,7 @@ export function CartScreen() {
                     <MaterialCommunityIcons name="plus" size={18} color={colors.primary} />
                   </Pressable>
                 </View>
-                <Text style={styles.linePrice}>
+                <Text style={[styles.linePrice, isRTL && styles.txtRight]}>
                   ${(parseFloat(l.price) * l.qty).toFixed(2)}
                 </Text>
               </View>
@@ -77,31 +82,31 @@ export function CartScreen() {
           </View>
         ))}
 
-        <View style={styles.promoBox}>
-          <Text style={styles.promoLabel}>Promo Code</Text>
-          <View style={styles.promoRow}>
+        <View style={[styles.promoBox, { direction: isRTL ? 'rtl' : 'ltr' }]}>
+          <Text style={[styles.promoLabel, isRTL && styles.txtRight]}>{locale === 'ar' ? 'رمز الخصم' : 'Promo Code'}</Text>
+          <View style={[styles.promoRow, isRTL && styles.rowReverse]}>
             <TextInput
-              style={styles.promoInput}
-              placeholder="VITALIS25"
+              style={[styles.promoInput, isRTL && styles.txtRight]}
+              placeholder={locale === 'ar' ? 'مثال: VITALIS25' : 'VITALIS25'}
               placeholderTextColor={colors.outline}
               value={promo}
               onChangeText={setPromo}
               autoCapitalize="characters"
             />
             <Pressable style={styles.apply}>
-              <Text style={styles.applyTxt}>Apply</Text>
+              <Text style={[styles.applyTxt, isRTL && styles.txtRight]}>{locale === 'ar' ? 'تطبيق' : 'Apply'}</Text>
             </Pressable>
           </View>
         </View>
 
-        <View style={styles.sum}>
-          <CartRow st={styles} label="Subtotal" value={`$${subtotal.toFixed(2)}`} />
-          <CartRow st={styles} label="Eco-Shipping" value="FREE" highlight />
-          <CartRow st={styles} label="Estimated Tax" value={`$${tax.toFixed(2)}`} />
+        <View style={[styles.sum, { direction: isRTL ? 'rtl' : 'ltr' }]}>
+          <CartRow st={styles} isRTL={isRTL} label={locale === 'ar' ? 'الإجمالي الفرعي' : 'Subtotal'} value={`$${subtotal.toFixed(2)}`} />
+          <CartRow st={styles} isRTL={isRTL} label={locale === 'ar' ? 'الشحن' : 'Eco-Shipping'} value={locale === 'ar' ? 'مجاني' : 'FREE'} highlight />
+          <CartRow st={styles} isRTL={isRTL} label={locale === 'ar' ? 'الضريبة المتوقعة' : 'Estimated Tax'} value={`$${tax.toFixed(2)}`} />
           <View style={styles.divider} />
-          <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>Total Amount</Text>
-            <Text style={styles.totalVal}>${total.toFixed(2)}</Text>
+          <View style={[styles.totalRow, isRTL && styles.rowReverse]}>
+            <Text style={[styles.totalLabel, isRTL && styles.txtRight]}>{locale === 'ar' ? 'المبلغ الإجمالي' : 'Total Amount'}</Text>
+            <Text style={[styles.totalVal, isRTL && styles.txtRight]}>${total.toFixed(2)}</Text>
           </View>
           <Pressable
             onPress={() =>
@@ -118,19 +123,21 @@ export function CartScreen() {
               })
             }
           >
-            <LinearGradient colors={[colors.primary, colors.primaryContainer]} style={styles.checkout}>
-              <Text style={styles.checkoutTxt}>Proceed to Checkout</Text>
-              <MaterialCommunityIcons name="arrow-right" size={22} color={colors.onPrimaryContainer} />
+            <LinearGradient colors={[colors.primary, colors.primaryContainer]} style={[styles.checkout, isRTL && styles.rowReverse]}>
+              <Text style={[styles.checkoutTxt, isRTL && styles.txtRight]}>{locale === 'ar' ? 'المتابعة للدفع' : 'Proceed to Checkout'}</Text>
+              <MaterialCommunityIcons name={isRTL ? 'arrow-left' : 'arrow-right'} size={22} color={colors.onPrimaryContainer} />
             </LinearGradient>
           </Pressable>
         </View>
 
-        <View style={styles.secure}>
+        <View style={[styles.secure, isRTL && styles.rowReverse, { direction: isRTL ? 'rtl' : 'ltr' }]}>
           <MaterialCommunityIcons name="shield-account" size={24} color={colors.primary} />
           <View style={{ flex: 1 }}>
-            <Text style={styles.secureTitle}>Secure Care</Text>
-            <Text style={styles.secureBody}>
-              Your transaction is protected by end-to-end medical grade encryption and privacy standards.
+            <Text style={[styles.secureTitle, isRTL && styles.txtRight]}>{locale === 'ar' ? 'دفع آمن' : 'Secure Care'}</Text>
+            <Text style={[styles.secureBody, isRTL && styles.txtRight]}>
+              {locale === 'ar'
+                ? 'عملية الدفع محمية بتشفير ومعايير خصوصية عالية.'
+                : 'Your transaction is protected by end-to-end medical grade encryption and privacy standards.'}
             </Text>
           </View>
         </View>
@@ -141,20 +148,22 @@ export function CartScreen() {
 
 function CartRow({
   st,
+  isRTL,
   label,
   value,
   highlight,
 }: {
   st: ReturnType<typeof createCartStyles>;
+  isRTL?: boolean;
   label: string;
   value: string;
   highlight?: boolean;
 }) {
   const { colors } = useTheme();
   return (
-    <View style={st.row}>
-      <Text style={st.rowLabel}>{label}</Text>
-      <Text style={[st.rowVal, highlight && { color: colors.primary, fontWeight: '800' }]}>{value}</Text>
+    <View style={[st.row, isRTL && st.rowReverse]}>
+      <Text style={[st.rowLabel, isRTL && st.txtRight]}>{label}</Text>
+      <Text style={[st.rowVal, isRTL && st.txtRight, highlight && { color: colors.primary, fontWeight: '800' }]}>{value}</Text>
     </View>
   );
 }
@@ -162,6 +171,8 @@ function CartRow({
 function createCartStyles(c: ThemeColors, isDark: boolean) {
   return StyleSheet.create({
     root: { flex: 1, backgroundColor: screenRootBg(isDark, c.background) },
+    rowReverse: { flexDirection: 'row-reverse' },
+    txtRight: { textAlign: 'right' },
     pageTitle: { fontSize: 32, fontWeight: '900', color: c.onSurface, marginTop: 8 },
     pageSub: { color: c.onSurfaceVariant, fontWeight: '600', marginBottom: 20 },
     emptyBox: {
@@ -194,6 +205,10 @@ function createCartStyles(c: ThemeColors, isDark: boolean) {
       width: 3,
       backgroundColor: c.primary,
       borderRadius: 2,
+    },
+    stripRtl: {
+      left: undefined,
+      right: 0,
     },
     thumb: { width: 96, height: 96, borderRadius: 12, backgroundColor: c.surfaceContainerHigh },
     lineBody: { flex: 1, justifyContent: 'space-between' },

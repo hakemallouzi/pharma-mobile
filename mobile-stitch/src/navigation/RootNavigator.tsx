@@ -15,6 +15,7 @@ import { PharmacyDetailScreen } from '../screens/PharmacyDetailScreen';
 import { SpecialistChatScreen } from '../screens/SpecialistChatScreen';
 import { ProductDetailScreen } from '../screens/ProductDetailScreen';
 import { ProductListScreen } from '../screens/ProductListScreen';
+import { OrdersHistoryScreen } from '../screens/OrdersHistoryScreen';
 import type { RootStackParamList } from './navigationTypes';
 import { MainTabs } from './MainTabs';
 
@@ -43,6 +44,7 @@ export function RootNavigator() {
       <Stack.Screen name="Addresses" component={AddressesScreen} />
       <Stack.Screen name="Checkout" component={CheckoutScreen} />
       <Stack.Screen name="OrderDetail" component={OrderDetailScreen} />
+      <Stack.Screen name="OrdersHistory" component={OrdersHistoryScreen} />
       <Stack.Screen name="ProductList" component={ProductListScreen} />
       <Stack.Screen name="ProductDetail" component={ProductDetailScreen} />
       <Stack.Screen name="PharmacyList" component={PharmacyListScreen} />

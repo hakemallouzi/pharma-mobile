@@ -17,6 +17,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { RootStackParamList } from '../navigation/navigationTypes';
 import { ClinicalHeader } from '../components/ClinicalHeader';
+import { useLocale } from '../context/LocaleContext';
 import { SCREEN_CONTENT_GUTTER } from '../components/ScreenScroll';
 import type { ThemeColors } from '../theme/palettes';
 import { screenRootBg } from '../theme/screenBackground';
@@ -77,8 +78,12 @@ const SAVED_LOCATIONS: SavedLocation[] = [
 
 export function CheckoutScreen({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
+  const { locale, isRTL } = useLocale();
   const { colors, isDark } = useTheme();
   const styles = useMemo(() => createCheckoutStyles(colors, isDark), [colors, isDark]);
+  // PersistentBottomNav is absolutely positioned; reserve its space to prevent overlay.
+  const bottomNavInset = Math.max(insets.bottom, 10);
+  const bottomNavOverlayHeight = 67 + bottomNavInset;
   const [pay, setPay] = useState<'apple' | 'card' | 'cash'>('apple');
   const [deliveryId, setDeliveryId] = useState(SAVED_LOCATIONS[0]?.id ?? '');
   const [hasCardDetails, setHasCardDetails] = useState(false);
@@ -92,6 +97,9 @@ export function CheckoutScreen({ navigation, route }: Props) {
   const [visaExpiry, setVisaExpiry] = useState('10/29');
   const [placeHoldSecondsLeft, setPlaceHoldSecondsLeft] = useState<number | null>(null);
   const placeHoldIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const openVisaModal = route.params?.openVisaModal;
+  const visaModalStepParam = route.params?.visaModalStep;
 
   const cancelPlaceOrderHold = () => {
     if (placeHoldIntervalRef.current) {
@@ -154,6 +162,18 @@ export function CheckoutScreen({ navigation, route }: Props) {
     closeVisaModal();
   };
 
+  useEffect(() => {
+    if (!openVisaModal) return;
+    setPay('card');
+    setVisaModalStep(visaModalStepParam ?? 'form');
+    setShowVisaChangeModal(true);
+    // Start from a clean slate each time we open from the menu.
+    setVisaFormError('');
+    setVisaFormNumber('');
+    setVisaFormExpiry('');
+    setVisaFormCvv('');
+  }, [openVisaModal, visaModalStepParam]);
+
   const lines = route.params?.lines ?? [];
   const promoCode = route.params?.promoCode;
 
@@ -173,26 +193,27 @@ export function CheckoutScreen({ navigation, route }: Props) {
   return (
     <View style={styles.root}>
       <ClinicalHeader
-        title="Checkout"
+        title={locale === 'ar' ? 'الدفع' : 'Checkout'}
         onBack={() => navigation.goBack()}
-        right={
-          <Text style={styles.brandRight}>The Clinical Atelier</Text>
-        }
       />
-      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 40, paddingHorizontal: 24 }}>
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: bottomNavOverlayHeight + 40, paddingHorizontal: 24 }}
+      >
         <CheckoutSectionTitle st={styles}>Delivery Address</CheckoutSectionTitle>
         <Pressable
-          style={styles.addrAddTop}
+          style={[styles.addrAddTop, isRTL && styles.rowReverse]}
           onPress={() => navigation.navigate('Addresses')}
           accessibilityRole="button"
           accessibilityLabel="Add new delivery address"
         >
-          <MaterialCommunityIcons name="plus-circle-outline" size={26} color={colors.primary} />
+          <View style={styles.addrAddTopCircle}>
+            <MaterialCommunityIcons name="plus-circle-outline" size={26} color={colors.primary} />
+          </View>
           <View style={styles.addrAddTopText}>
             <Text style={styles.addrAddTopTitle}>Add new address</Text>
             <Text style={styles.addrAddTopSub}>Save another delivery location</Text>
           </View>
-          <MaterialCommunityIcons name="chevron-right" size={22} color={colors.primary} />
+          <MaterialCommunityIcons name={isRTL ? 'chevron-left' : 'chevron-right'} size={22} color={colors.primary} />
         </Pressable>
         <ScrollView
           horizontal
@@ -210,28 +231,12 @@ export function CheckoutScreen({ navigation, route }: Props) {
                 accessibilityRole="button"
                 accessibilityState={{ selected: on }}
               >
-                <View style={styles.addrSlideHead}>
-                  <View style={styles.addrSlideHeadLeft}>
-                    <MaterialCommunityIcons
-                      name={loc.icon}
-                      size={20}
-                      color={on ? colors.primary : colors.onSurfaceVariant}
-                    />
-                    <Text style={[styles.addrSlideKind, on && styles.addrSlideKindOn]}>{loc.label}</Text>
-                  </View>
-                  {on ? (
-                    <MaterialCommunityIcons name="check-circle" size={20} color={colors.primary} />
-                  ) : null}
+                <View style={styles.addrSlideRow}>
+                  <Text style={[styles.addrSlideTitle, on && styles.addrSlideTitleOn]} numberOfLines={1}>
+                    {loc.title}
+                  </Text>
+                  {on ? <MaterialCommunityIcons name="check-circle" size={18} color={colors.primary} /> : null}
                 </View>
-                <Text style={styles.addrSlideTitle} numberOfLines={1}>
-                  {loc.title}
-                </Text>
-                <Text style={styles.addrSlideDetail} numberOfLines={2}>
-                  {loc.detail}
-                </Text>
-                {loc.isPrimary ? (
-                  <Text style={styles.addrSlidePrimary}>Primary</Text>
-                ) : null}
               </Pressable>
             );
           })}
@@ -621,6 +626,7 @@ function CheckoutReviewRow({
 function createCheckoutStyles(c: ThemeColors, isDark: boolean) {
   return StyleSheet.create({
     root: { flex: 1, backgroundColor: screenRootBg(isDark, c.background) },
+    rowReverse: { flexDirection: 'row-reverse' },
     brandRight: { color: c.primary, fontWeight: '800', maxWidth: 140, textAlign: 'right', fontSize: 13 },
     secHead: {
       flexDirection: 'row',
@@ -636,13 +642,18 @@ function createCheckoutStyles(c: ThemeColors, isDark: boolean) {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 12,
-      backgroundColor: c.surfaceContainerHigh,
-      borderRadius: 16,
-      paddingVertical: 14,
-      paddingHorizontal: 16,
+      paddingVertical: 12,
       marginBottom: 14,
+    },
+    addrAddTopCircle: {
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      alignItems: 'center',
+      justifyContent: 'center',
       borderWidth: 1,
       borderColor: c.outlineVariant,
+      backgroundColor: c.surfaceContainerHigh,
     },
     addrAddTopText: { flex: 1 },
     addrAddTopTitle: { fontSize: 16, fontWeight: '800', color: c.onSurface },
@@ -654,36 +665,22 @@ function createCheckoutStyles(c: ThemeColors, isDark: boolean) {
       paddingVertical: 4,
     },
     addrSlide: {
-      width: 268,
-      padding: 16,
-      borderRadius: 16,
+      borderRadius: 999,
       backgroundColor: c.surfaceContainerLow,
-      borderWidth: 2,
-      borderColor: 'transparent',
+      borderWidth: 1,
+      borderColor: c.outlineVariant,
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      minHeight: 38,
+      justifyContent: 'center',
     },
     addrSlideOn: {
-      borderColor: c.primary,
       backgroundColor: c.tabPillActive,
+      borderColor: c.primary,
     },
-    addrSlideHead: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      marginBottom: 10,
-    },
-    addrSlideHeadLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-    addrSlideKind: { fontSize: 12, fontWeight: '800', color: c.onSurfaceVariant, textTransform: 'uppercase' },
-    addrSlideKindOn: { color: c.primary },
-    addrSlideTitle: { fontSize: 16, fontWeight: '800', color: c.onSurface, marginBottom: 6 },
-    addrSlideDetail: { fontSize: 12, color: c.onSurfaceVariant, lineHeight: 18 },
-    addrSlidePrimary: {
-      marginTop: 10,
-      fontSize: 10,
-      fontWeight: '800',
-      letterSpacing: 1,
-      color: c.primary,
-      textTransform: 'uppercase',
-    },
+    addrSlideRow: { flexDirection: 'row', alignItems: 'center', gap: 8, justifyContent: 'center' },
+    addrSlideTitle: { fontSize: 12, fontWeight: '700', color: c.onSurfaceVariant },
+    addrSlideTitleOn: { color: c.primary },
     payGrid: { flexDirection: 'row', gap: 10, marginBottom: 16 },
     payCell: {
       flex: 1,

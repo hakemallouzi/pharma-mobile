@@ -5,7 +5,6 @@ import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-na
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { imagesB2 } from '../../assets/imagesBatch2';
 import { useLocale } from '../../context/LocaleContext';
 import type { RootStackParamList } from '../../navigation/navigationTypes';
 import type { ThemeColors } from '../../theme/palettes';
@@ -13,6 +12,8 @@ import { screenRootBg } from '../../theme/screenBackground';
 import { useTheme } from '../../theme/ThemeContext';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'AuthGate'>;
+
+const APP_LOGO = require('../../assets/logo.png');
 
 export function AuthGateScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
@@ -45,11 +46,7 @@ export function AuthGateScreen({ navigation }: Props) {
       >
         <View style={styles.hero}>
           <View style={styles.logoWrap}>
-            <LinearGradient
-              colors={[colors.tabPillActive, 'transparent']}
-              style={StyleSheet.absoluteFill}
-            />
-            <MaterialCommunityIcons name="medical-bag" size={56} color={colors.primary} />
+            <Image source={APP_LOGO} style={styles.logoImg} contentFit="contain" />
           </View>
           <Text style={styles.h1}>
             Vitalis <Text style={styles.h1Accent}>Health</Text>
@@ -80,82 +77,10 @@ export function AuthGateScreen({ navigation }: Props) {
             <Text style={styles.secondaryCtaText}>Get Started</Text>
           </Pressable>
 
-          <Text style={styles.memberHint}>Existing health member?</Text>
+          <Text style={styles.memberHint}>Already a member?</Text>
           <Pressable onPress={() => navigation.navigate('Login')}>
             <Text style={styles.link}>Login for existing members</Text>
           </Pressable>
-        </View>
-
-        <View style={styles.bento}>
-          <View style={styles.cardLarge}>
-            <View style={styles.accentBar} />
-            <Text style={styles.cardTitle}>Digital Prescription Sanctuary</Text>
-            <Text style={styles.cardBody}>
-              Securely manage your medical records and refills with an editorial interface designed
-              for clarity.
-            </Text>
-            <Image source={{ uri: imagesB2.authBentoPills }} style={styles.cardImg} contentFit="cover" />
-          </View>
-
-          <View style={styles.cardMedium}>
-            <MaterialCommunityIcons name="microscope" size={36} color={colors.primary} />
-            <Text style={styles.cardTitleSm}>Lab-Grade Precision</Text>
-            <Text style={styles.cardBodySm}>
-              Real-time tracking of your vitals and laboratory results with professional
-              visualization.
-            </Text>
-            <View style={styles.avatars}>
-              {[0, 1, 2].map((i) => (
-                <View key={i} style={[styles.avatar, { marginLeft: i > 0 ? -12 : 0 }]} />
-              ))}
-            </View>
-            <Text style={styles.joined}>Joined by 12k+ members</Text>
-          </View>
-
-          <View style={styles.cardImage}>
-            <Image source={{ uri: imagesB2.authArchitecture }} style={styles.fullImg} contentFit="cover" />
-            <LinearGradient
-              colors={['transparent', colors.surface]}
-              style={styles.imgGrad}
-            />
-            <View style={styles.imgCaption}>
-              <Text style={styles.imgLabel}>Architecture</Text>
-              <Text style={styles.imgTitle}>Designed for Calm</Text>
-            </View>
-          </View>
-
-          <View style={styles.cardWide}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.cardTitle}>Premium Care Membership</Text>
-              <View style={styles.checkRow}>
-                <MaterialCommunityIcons name="check-circle" size={18} color={colors.primary} />
-                <Text style={styles.checkText}>24/7 Specialist Access</Text>
-              </View>
-              <View style={styles.checkRow}>
-                <MaterialCommunityIcons name="check-circle" size={18} color={colors.primary} />
-                <Text style={styles.checkText}>Priority Pharmacy Fulfillment</Text>
-              </View>
-            </View>
-            <View style={styles.statBox}>
-              <Text style={styles.statNum}>15m</Text>
-              <Text style={styles.statLabel}>Average response time</Text>
-            </View>
-          </View>
-        </View>
-
-        <View style={styles.footer}>
-          <Text style={styles.footerCopy}>© 2024 The Clinical Atelier • Vitalis Health</Text>
-          <View style={styles.footerLinks}>
-            <Pressable onPress={() => Linking.openURL('https://vitalis.health/privacy').catch(() => {})}>
-              <Text style={styles.footerLink}>Privacy</Text>
-            </Pressable>
-            <Pressable onPress={() => Linking.openURL('https://vitalis.health/terms').catch(() => {})}>
-              <Text style={styles.footerLink}>Terms</Text>
-            </Pressable>
-            <Pressable onPress={() => Linking.openURL('mailto:support@vitalis.health').catch(() => {})}>
-              <Text style={styles.footerLink}>Support</Text>
-            </Pressable>
-          </View>
         </View>
       </ScrollView>
     </View>
@@ -196,17 +121,20 @@ function createAuthGateStyles(c: ThemeColors, isDark: boolean) {
       justifyContent: 'center',
     },
     scroll: { paddingHorizontal: 24 },
-    hero: { alignItems: 'center', paddingTop: 24 },
+    hero: { alignItems: 'center', paddingTop: 64 },
     logoWrap: {
-      width: 96,
-      height: 96,
-      borderRadius: 24,
-      backgroundColor: c.surfaceContainerLow,
+      width: 128,
+      height: 128,
+      borderRadius: 999,
+      backgroundColor: 'transparent',
+      borderWidth: 0,
+      padding: 0,
       alignItems: 'center',
       justifyContent: 'center',
       marginBottom: 40,
-      overflow: 'hidden',
+      overflow: 'visible',
     },
+    logoImg: { width: 290, height: 290 },
     h1: {
       fontSize: 36,
       fontWeight: '800',

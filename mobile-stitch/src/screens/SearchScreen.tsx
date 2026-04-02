@@ -6,46 +6,52 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { imagesB2 } from '../assets/imagesBatch2';
+import { useLocale } from '../context/LocaleContext';
 import { useAppNavigation } from '../navigation/useAppNavigation';
 import { ClinicalHeader } from '../components/ClinicalHeader';
 import type { ThemeColors } from '../theme/palettes';
 import { screenRootBg } from '../theme/screenBackground';
 import { useTheme } from '../theme/ThemeContext';
 
-const popular = [
-  'Vitamin C 1000mg',
-  'Pain Relief',
-  'Melatonin Gummies',
-  'Digital Thermometer',
-  'Face Masks',
-  'Omega 3',
-];
-
 const initialRecent = ['Paracetamol 500mg', 'Antiseptic Cream', 'Kids Multivitamin'];
 
-function categoryChips(colors: ThemeColors) {
+function categoryChips(colors: ThemeColors, isArabic: boolean) {
   return [
-    { icon: 'view-grid-plus-outline' as const, label: 'All Categories', category: 'All', color: colors.secondary },
-    { icon: 'pill' as const, label: 'Medicines', color: colors.primary },
-    { icon: 'pill-multiple' as const, label: 'Vitamins', color: colors.tertiary },
-    { icon: 'baby-bottle-outline' as const, label: 'Baby Care', color: colors.secondary },
-    { icon: 'face-woman-outline' as const, label: 'Skincare', color: colors.primary },
-    { icon: 'cup-water' as const, label: 'Hydration', color: colors.primary },
-    { icon: 'stethoscope' as const, label: 'Medical Devices', color: colors.primary },
-    { icon: 'heart-pulse' as const, label: 'Heart Health', color: colors.primary },
-    { icon: 'brain' as const, label: 'Mental Wellness', color: colors.primary },
-    { icon: 'bone' as const, label: 'Bones & Joints', color: colors.primary },
-    { icon: 'bandage' as const, label: 'First Aid', color: colors.primary },
-    { icon: 'spray-bottle' as const, label: 'Personal Care', color: colors.primary },
+    {
+      icon: 'view-grid-plus-outline' as const,
+      label: isArabic ? 'كل الأقسام' : 'All Categories',
+      category: 'All',
+      color: colors.secondary,
+    },
+    { icon: 'pill' as const, label: isArabic ? 'الأدوية' : 'Medicines', color: colors.primary },
+    { icon: 'pill-multiple' as const, label: isArabic ? 'الفيتامينات' : 'Vitamins', color: colors.tertiary },
+    { icon: 'baby-bottle-outline' as const, label: isArabic ? 'العناية بالطفل' : 'Baby Care', color: colors.secondary },
+    { icon: 'face-woman-outline' as const, label: isArabic ? 'العناية بالبشرة' : 'Skincare', color: colors.primary },
+    { icon: 'cup-water' as const, label: isArabic ? 'الترطيب' : 'Hydration', color: colors.primary },
+    { icon: 'stethoscope' as const, label: isArabic ? 'الأجهزة الطبية' : 'Medical Devices', color: colors.primary },
+    { icon: 'heart-pulse' as const, label: isArabic ? 'صحة القلب' : 'Heart Health', color: colors.primary },
+    { icon: 'brain' as const, label: isArabic ? 'الصحة النفسية' : 'Mental Wellness', color: colors.primary },
+    { icon: 'bone' as const, label: isArabic ? 'العظام والمفاصل' : 'Bones & Joints', color: colors.primary },
+    { icon: 'bandage' as const, label: isArabic ? 'الإسعافات الأولية' : 'First Aid', color: colors.primary },
+    { icon: 'spray-bottle' as const, label: isArabic ? 'العناية الشخصية' : 'Personal Care', color: colors.primary },
   ];
 }
 
 export function SearchScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useAppNavigation();
+  const { t, locale } = useLocale();
   const { colors, isDark } = useTheme();
   const styles = useMemo(() => createSearchStyles(colors, isDark), [colors, isDark]);
-  const cats = useMemo(() => categoryChips(colors), [colors]);
+  const isArabic = locale === 'ar';
+  const cats = useMemo(() => categoryChips(colors, isArabic), [colors, isArabic]);
+  const popular = useMemo(
+    () =>
+      isArabic
+        ? ['فيتامين C 1000mg', 'مسكنات الألم', 'ميلاتونين', 'ميزان حرارة رقمي', 'كمامات', 'أوميغا 3']
+        : ['Vitamin C 1000mg', 'Pain Relief', 'Melatonin Gummies', 'Digital Thermometer', 'Face Masks', 'Omega 3'],
+    [isArabic]
+  );
   const [q, setQ] = useState('');
   const [recentItems, setRecentItems] = useState(initialRecent);
   const [prescriptionImageUri, setPrescriptionImageUri] = useState<string | null>(null);
@@ -59,7 +65,12 @@ export function SearchScreen() {
   const pickFromLibrary = async (kind: 'prescription' | 'medicine') => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
-      Alert.alert('Permission needed', 'Please allow photo library access to upload an image.');
+      Alert.alert(
+        locale === 'ar' ? 'الصلاحية مطلوبة' : 'Permission needed',
+        locale === 'ar'
+          ? 'يرجى السماح بالوصول إلى الصور لرفع الصورة.'
+          : 'Please allow photo library access to upload an image.'
+      );
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -74,7 +85,10 @@ export function SearchScreen() {
   const pickFromCamera = async (kind: 'prescription' | 'medicine') => {
     const perm = await ImagePicker.requestCameraPermissionsAsync();
     if (!perm.granted) {
-      Alert.alert('Permission needed', 'Please allow camera access to take a photo.');
+      Alert.alert(
+        locale === 'ar' ? 'الصلاحية مطلوبة' : 'Permission needed',
+        locale === 'ar' ? 'يرجى السماح بالوصول إلى الكاميرا لالتقاط صورة.' : 'Please allow camera access to take a photo.'
+      );
       return;
     }
     const result = await ImagePicker.launchCameraAsync({
@@ -87,10 +101,10 @@ export function SearchScreen() {
   };
 
   const pickImage = (kind: 'prescription' | 'medicine') => {
-    Alert.alert('Select image source', 'Choose how you want to upload.', [
-      { text: 'Take Photo', onPress: () => pickFromCamera(kind) },
-      { text: 'Choose from Gallery', onPress: () => pickFromLibrary(kind) },
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(locale === 'ar' ? 'اختيار مصدر الصورة' : 'Select image source', locale === 'ar' ? 'اختر طريقة الرفع.' : 'Choose how you want to upload.', [
+      { text: locale === 'ar' ? 'التقاط صورة' : 'Take Photo', onPress: () => pickFromCamera(kind) },
+      { text: locale === 'ar' ? 'اختيار من المعرض' : 'Choose from Gallery', onPress: () => pickFromLibrary(kind) },
+      { text: locale === 'ar' ? 'إلغاء' : 'Cancel', style: 'cancel' },
     ]);
   };
 
@@ -101,12 +115,7 @@ export function SearchScreen() {
   return (
     <View style={styles.root}>
       <ClinicalHeader
-        title="Search"
-        right={
-          <Pressable hitSlop={8}>
-            <MaterialCommunityIcons name="dots-vertical" size={24} color={colors.primary} />
-          </Pressable>
-        }
+        title={t.tabSearch}
       />
       <ScrollView
         contentContainerStyle={{ paddingBottom: 100 + insets.bottom, paddingHorizontal: 24 }}
@@ -116,7 +125,7 @@ export function SearchScreen() {
           <MaterialCommunityIcons name="magnify" size={22} color={colors.outline} style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search medicines, vitamins, wellness..."
+            placeholder={t.searchPlaceholder}
             placeholderTextColor={colors.outline}
             value={q}
             onChangeText={setQ}
@@ -125,7 +134,7 @@ export function SearchScreen() {
             onPress={() => navigation.navigate('BarcodeScan')}
             hitSlop={8}
             accessibilityRole="button"
-            accessibilityLabel="Scan prescription barcode"
+            accessibilityLabel={locale === 'ar' ? 'مسح باركود الوصفة' : 'Scan prescription barcode'}
           >
             <MaterialCommunityIcons name="barcode-scan" size={24} color={colors.primary} />
           </Pressable>
@@ -133,34 +142,38 @@ export function SearchScreen() {
         <View style={styles.uploadRow}>
           <Pressable style={styles.uploadBtn} onPress={contactSpecialistPharmacist}>
             <MaterialCommunityIcons name="face-agent" size={18} color={colors.primary} />
-            <Text style={styles.uploadBtnTxt}>Prescription via specialist</Text>
+            <Text style={styles.uploadBtnTxt}>{locale === 'ar' ? 'الوصفة عبر الصيدلي المختص' : 'Prescription via specialist'}</Text>
           </Pressable>
           <Pressable style={styles.uploadBtn} onPress={() => pickImage('medicine')}>
             <MaterialCommunityIcons name="pill" size={18} color={colors.primary} />
-            <Text style={styles.uploadBtnTxt}>Upload medicine image</Text>
+            <Text style={styles.uploadBtnTxt}>{locale === 'ar' ? 'رفع صورة الدواء' : 'Upload medicine image'}</Text>
           </Pressable>
         </View>
-        <Text style={styles.uploadHint}>For prescriptions, contact our specialist pharmacist for guidance.</Text>
+        <Text style={styles.uploadHint}>
+          {locale === 'ar'
+            ? 'للوصفات، تواصل مع الصيدلي المختص للحصول على المساعدة.'
+            : 'For prescriptions, contact our specialist pharmacist for guidance.'}
+        </Text>
         {prescriptionImageUri || medicineImageUri ? (
           <View style={styles.uploadPreviewRow}>
             {prescriptionImageUri ? (
               <View style={styles.uploadPreviewItem}>
                 <Image source={{ uri: prescriptionImageUri }} style={styles.uploadPreviewImg} contentFit="cover" />
-                <Text style={styles.uploadPreviewTxt}>Prescription ready</Text>
+                <Text style={styles.uploadPreviewTxt}>{locale === 'ar' ? 'الوصفة جاهزة' : 'Prescription ready'}</Text>
               </View>
             ) : null}
             {medicineImageUri ? (
               <View style={styles.uploadPreviewItem}>
                 <Image source={{ uri: medicineImageUri }} style={styles.uploadPreviewImg} contentFit="cover" />
-                <Text style={styles.uploadPreviewTxt}>Medicine image ready</Text>
+                <Text style={styles.uploadPreviewTxt}>{locale === 'ar' ? 'صورة الدواء جاهزة' : 'Medicine image ready'}</Text>
               </View>
             ) : null}
           </View>
         ) : null}
         <View style={styles.orderAgainHead}>
-          <Text style={styles.smallTitle}>Order Again</Text>
+          <Text style={styles.smallTitle}>{locale === 'ar' ? 'اطلب مرة أخرى' : 'Order Again'}</Text>
           <Pressable onPress={() => setRecentItems([])}>
-            <Text style={styles.clear}>Clear All</Text>
+            <Text style={styles.clear}>{locale === 'ar' ? 'مسح الكل' : 'Clear All'}</Text>
           </Pressable>
         </View>
         {recentItems.map((r) => (
@@ -175,9 +188,9 @@ export function SearchScreen() {
         ))}
 
         <View style={styles.sectionHead}>
-          <Text style={styles.sectionTitle}>Categories</Text>
+          <Text style={styles.sectionTitle}>{t.categories}</Text>
           <Pressable onPress={() => navigation.navigate('ProductList', { category: 'All' })}>
-            <Text style={styles.link}>View All</Text>
+            <Text style={styles.link}>{t.viewAll}</Text>
           </Pressable>
         </View>
         <View style={styles.catGrid}>
@@ -202,7 +215,7 @@ export function SearchScreen() {
 
         <View style={styles.twoCol}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.smallTitle}>Popular Now</Text>
+            <Text style={styles.smallTitle}>{locale === 'ar' ? 'الأكثر شيوعاً الآن' : 'Popular Now'}</Text>
             <View style={styles.chips}>
               {popular.map((p) => (
                 <Pressable

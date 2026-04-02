@@ -14,6 +14,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { imagesB2 } from '../../assets/imagesBatch2';
 import { useAuth } from '../../context/AuthContext';
+import { useLocale } from '../../context/LocaleContext';
 import { Image } from 'expo-image';
 import type { RootStackParamList } from '../../navigation/navigationTypes';
 import type { ThemeColors } from '../../theme/palettes';
@@ -27,23 +28,23 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
 export function LoginScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const { signIn } = useAuth();
+  const { locale, isRTL } = useLocale();
   const { colors, isDark } = useTheme();
   const styles = useMemo(() => createLoginStyles(colors, isDark), [colors, isDark]);
   const [showPass, setShowPass] = useState(false);
 
+  // PersistentBottomNav is absolutely positioned; reserve its space to prevent overlay.
+  const bottomNavInset = Math.max(insets.bottom, 10);
+  const bottomNavOverlayHeight = 67 + bottomNavInset;
+
   return (
     <View style={styles.root}>
       <ClinicalHeader
-        title="The Clinical Atelier"
+        title={locale === 'ar' ? 'ذا كلينيكال أتيليه' : 'The Clinical Atelier'}
         onBack={() => navigation.goBack()}
-        right={
-          <Pressable hitSlop={8}>
-            <MaterialCommunityIcons name="dots-vertical" size={24} color={colors.primary} />
-          </Pressable>
-        }
       />
       <ScrollView
-        contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
+        contentContainerStyle={{ paddingBottom: bottomNavOverlayHeight + 24 }}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.heroImg}>
@@ -78,15 +79,23 @@ export function LoginScreen({ navigation }: Props) {
             </Pressable>
           </View>
           <View>
-            <TextInput
-              placeholder="••••••••"
-              placeholderTextColor={colors.outline}
-              style={styles.input}
-              secureTextEntry={!showPass}
-            />
-            <Pressable style={styles.eye} onPress={() => setShowPass((s) => !s)}>
-              <MaterialCommunityIcons name={showPass ? 'eye-off' : 'eye'} size={20} color={colors.onSurfaceVariant} />
-            </Pressable>
+            <View style={{ position: 'relative' }}>
+              <TextInput
+                placeholder="••••••••"
+                placeholderTextColor={colors.outline}
+                style={[
+                  styles.input,
+                  isRTL ? { paddingLeft: 48 } : { paddingRight: 48 },
+                ]}
+                secureTextEntry={!showPass}
+              />
+              <Pressable
+                style={[styles.eye, isRTL ? { left: 14, right: undefined } : { right: 14 }]}
+                onPress={() => setShowPass((s) => !s)}
+              >
+                <MaterialCommunityIcons name={showPass ? 'eye-off' : 'eye'} size={20} color={colors.onSurfaceVariant} />
+              </Pressable>
+            </View>
           </View>
 
           <Pressable
@@ -158,17 +167,23 @@ function createLoginStyles(c: ThemeColors, isDark: boolean) {
       textTransform: 'uppercase',
     },
     input: {
-      backgroundColor: c.surfaceContainerHighest,
-      borderBottomWidth: 2,
-      borderBottomColor: c.outlineVariant,
+      backgroundColor: '#fff',
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: c.outlineVariant,
       paddingVertical: 12,
+      paddingHorizontal: 14,
       marginBottom: 20,
       color: c.onSurface,
       fontSize: 16,
     },
     rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     forgot: { fontSize: 11, color: c.onSurfaceVariant, fontWeight: '600' },
-    eye: { position: 'absolute', right: 0, top: 14 },
+    eye: {
+      position: 'absolute',
+      top: '35%',
+      transform: [{ translateY: -10 }],
+    },
     loginBtn: { borderRadius: 14, paddingVertical: 16, alignItems: 'center', marginTop: 8 },
     loginBtnText: { color: c.onPrimary, fontSize: 18, fontWeight: '800' },
     divider: { flexDirection: 'row', alignItems: 'center', marginVertical: 24, gap: 12 },

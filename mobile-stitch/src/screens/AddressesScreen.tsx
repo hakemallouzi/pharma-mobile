@@ -5,6 +5,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { imagesB2 } from '../assets/imagesBatch2';
+import { useLocale } from '../context/LocaleContext';
 import type { RootStackParamList } from '../navigation/navigationTypes';
 import { ClinicalHeader } from '../components/ClinicalHeader';
 import type { ThemeColors } from '../theme/palettes';
@@ -15,22 +16,23 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Addresses'>;
 
 export function AddressesScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
+  const { locale } = useLocale();
   const { colors, isDark } = useTheme();
   const styles = useMemo(() => createAddressesStyles(colors, isDark), [colors, isDark]);
   const [q, setQ] = useState('');
+  // PersistentBottomNav is absolutely positioned at the bottom.
+  const bottomNavInset = Math.max(insets.bottom, 10);
+  const bottomNavOverlayHeight = 67 + bottomNavInset;
 
   return (
     <View style={styles.root}>
       <ClinicalHeader
-        title="The Clinical Atelier"
+        title={locale === 'ar' ? 'العناوين' : 'Addresses'}
         onBack={() => navigation.goBack()}
-        right={
-          <Pressable hitSlop={8}>
-            <MaterialCommunityIcons name="dots-vertical" size={24} color={colors.primary} />
-          </Pressable>
-        }
       />
-      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 24, paddingHorizontal: 24 }}>
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: bottomNavOverlayHeight + 24, paddingHorizontal: 24 }}
+      >
         <Text style={styles.pageTitle}>Addresses</Text>
         <Text style={styles.pageSub}>
           Manage your delivery points for seamless prescription fulfillment.

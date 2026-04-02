@@ -1,16 +1,21 @@
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { Alert, Linking, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { images } from '../assets/images';
+import { imagesB2 } from '../assets/imagesBatch2';
 import { useLocale } from '../context/LocaleContext';
+import { useAuth } from '../context/AuthContext';
 import { ScreenScroll, SCREEN_CONTENT_GUTTER } from '../components/ScreenScroll';
 import { useAppNavigation } from '../navigation/useAppNavigation';
 import type { ThemeColors } from '../theme/palettes';
 import { screenRootBg } from '../theme/screenBackground';
 import { useTheme } from '../theme/ThemeContext';
+import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
+
+const APP_LOGO = require('../assets/logo.png');
 
 const categories = [
   { icon: 'view-grid-plus-outline' as const, label: 'All Categories', category: 'All', greenBg: true },
@@ -48,13 +53,26 @@ const PROMOTIONS = [
   },
 ];
 
+const ORDER_ROUTE = [
+  { latitude: 44.0542, longitude: -123.035 },
+  { latitude: 44.051, longitude: -123.029 },
+  { latitude: 44.048, longitude: -123.025 },
+  { latitude: 44.0462, longitude: -123.022 },
+] as const;
+
+type OrderStatus = 'Placed' | 'Preparing' | 'On the Way' | 'Delivered';
+
 export function HomeEnScreen() {
   const insets = useSafeAreaInsets();
   const { width: winW } = useWindowDimensions();
-  const { t } = useLocale();
+  const { t, locale, setLocale } = useLocale();
   const nav = useAppNavigation();
-  const { colors, isDark } = useTheme();
+  const { profileImageUri } = useAuth();
+  const { colors, isDark, toggleScheme } = useTheme();
   const styles = useMemo(() => createHomeEnStyles(colors, isDark), [colors, isDark]);
+  // Demo: show order tracking map when an outstanding order exists.
+  const hasOutstandingOrder = true;
+  const [activeOrderStatus] = useState<OrderStatus>('Preparing');
   const [showAllCategories, setShowAllCategories] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
   const promoRef = useRef<ScrollView>(null);
@@ -63,6 +81,7 @@ export function HomeEnScreen() {
   const [promoIndex, setPromoIndex] = useState(0);
 
   useEffect(() => {
+    if (hasOutstandingOrder) return;
     const id = setInterval(() => {
       setPromoIndex((prev) => {
         const next = (prev + 1) % PROMOTIONS.length;
@@ -73,71 +92,104 @@ export function HomeEnScreen() {
       });
     }, 4500);
     return () => clearInterval(id);
-  }, [promoCardWidth]);
+  }, [promoCardWidth, hasOutstandingOrder]);
 
   return (
     <View style={styles.root}>
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-        <View>
-          <Text style={styles.deliverLabel}>{t.deliverTo}</Text>
-          <Pressable style={styles.deliverRow} onPress={() => nav.navigate('Addresses')}>
-            <Text style={styles.deliverValue}>Home</Text>
-            <MaterialCommunityIcons name="chevron-down" size={22} color={colors.primary} />
+        <View style={styles.headerLead}>
+          <Pressable onPress={() => nav.navigate('Main', { screen: 'Home' })} hitSlop={8} style={styles.logoBtn}>
+            <Image source={APP_LOGO} style={[styles.logo, locale === 'en' ? styles.logoEn : styles.logoAr]} contentFit="contain" />
           </Pressable>
+          <Pressable onPress={() => nav.navigate('Main', { screen: 'Profile' })} hitSlop={8}>
+            <Image source={{ uri: profileImageUri ?? images.homeEnAvatar }} style={styles.avatar} contentFit="cover" />
+          </Pressable>
+          <View>
+            <Text style={styles.deliverLabel}>{t.deliverTo}</Text>
+            <Pressable style={styles.deliverRow} onPress={() => nav.navigate('Addresses')}>
+              <Text style={styles.deliverValue}>Home</Text>
+              <MaterialCommunityIcons name="chevron-down" size={22} color={colors.primary} />
+            </Pressable>
+          </View>
         </View>
         <View style={styles.headerActions}>
-          <Pressable style={styles.iconCircle} onPress={() => Alert.alert('Notifications', 'No new alerts.')}>
+          <Pressable
+            style={styles.iconCircle}
+            onPress={() =>
+              Alert.alert(
+                t.profileNotifications,
+                locale === 'ar' ? 'لا توجد إشعارات جديدة.' : 'No new alerts.'
+              )
+            }
+          >
             <MaterialCommunityIcons name="bell-outline" size={22} color={colors.onSurface} />
           </Pressable>
-          <Pressable style={styles.iconCirclePrimary} onPress={() => setMenuOpen(true)}>
-            <MaterialCommunityIcons name="menu" size={22} color={colors.primary} />
+          <Pressable onPress={() => setLocale(locale === 'en' ? 'ar' : 'en')} style={styles.langSwitch} hitSlop={8}>
+            <Text style={styles.langTxt}>{locale === 'en' ? 'AR' : 'EN'}</Text>
+          </Pressable>
+          <Pressable onPress={toggleScheme} style={styles.themeBtn} hitSlop={8}>
+            <MaterialCommunityIcons
+              name={isDark ? 'weather-night' : 'white-balance-sunny'}
+              size={18}
+              color={colors.primary}
+            />
           </Pressable>
         </View>
       </View>
 
       <ScreenScroll bottomInset={88}>
-        <View
-          style={styles.promoCarousel}
-          onLayout={(e) => setPromoViewportWidth(Math.round(e.nativeEvent.layout.width))}
-        >
-          <ScrollView
-            ref={promoRef}
-            style={styles.promoPager}
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            onMomentumScrollEnd={(e) => {
-              if (promoCardWidth <= 0) return;
-              const next = Math.round(e.nativeEvent.contentOffset.x / promoCardWidth);
-              setPromoIndex(Math.max(0, Math.min(PROMOTIONS.length - 1, next)));
-            }}
+        {hasOutstandingOrder ? (
+          <OrderTrackerOnHome
+            styles={styles}
+            colors={colors}
+            locale={locale}
+            status={activeOrderStatus}
+            onOpen={() => nav.navigate('OrderDetail', { orderId: 'VT-88291' })}
+          />
+        ) : (
+          <View
+            style={styles.promoCarousel}
+            onLayout={(e) => setPromoViewportWidth(Math.round(e.nativeEvent.layout.width))}
           >
-            {PROMOTIONS.map((p) => (
-              <LinearGradient
-                key={p.title}
-                colors={[colors.primaryContainer, colors.surfaceContainerLow]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={[styles.promo, { width: promoCardWidth }]}
-              >
-                <View style={styles.promoText}>
-                  <Text style={styles.promoBadge}>{t.promotion}</Text>
-                  <Text style={styles.promoTitle}>{p.title}</Text>
-                  <Text style={styles.promoSub}>{p.sub}</Text>
-                  <Pressable style={styles.promoBtn} onPress={() => nav.navigate('Main', { screen: 'Cart' })}>
-                    <Text style={styles.promoBtnText}>{p.button}</Text>
-                  </Pressable>
-                </View>
-                <Image source={{ uri: p.image }} style={styles.promoImg} contentFit="cover" />
-              </LinearGradient>
-            ))}
-          </ScrollView>
-          <View style={styles.promoDots}>
-            {PROMOTIONS.map((_, i) => (
-              <View key={i} style={[styles.promoDot, i === promoIndex && styles.promoDotActive]} />
-            ))}
+            <ScrollView
+              ref={promoRef}
+              style={styles.promoPager}
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              onMomentumScrollEnd={(e) => {
+                if (promoCardWidth <= 0) return;
+                const next = Math.round(e.nativeEvent.contentOffset.x / promoCardWidth);
+                setPromoIndex(Math.max(0, Math.min(PROMOTIONS.length - 1, next)));
+              }}
+            >
+              {PROMOTIONS.map((p) => (
+                <LinearGradient
+                  key={p.title}
+                  colors={[colors.primaryContainer, colors.surfaceContainerLow]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={[styles.promo, { width: promoCardWidth }]}
+                >
+                  <View style={styles.promoText}>
+                    <Text style={styles.promoBadge}>{t.promotion}</Text>
+                    <Text style={styles.promoTitle}>{p.title}</Text>
+                    <Text style={styles.promoSub}>{p.sub}</Text>
+                    <Pressable style={styles.promoBtn} onPress={() => nav.navigate('Main', { screen: 'Cart' })}>
+                      <Text style={styles.promoBtnText}>{p.button}</Text>
+                    </Pressable>
+                  </View>
+                  <Image source={{ uri: p.image }} style={styles.promoImg} contentFit="cover" />
+                </LinearGradient>
+              ))}
+            </ScrollView>
+            <View style={styles.promoDots}>
+              {PROMOTIONS.map((_, i) => (
+                <View key={i} style={[styles.promoDot, i === promoIndex && styles.promoDotActive]} />
+              ))}
+            </View>
           </View>
-        </View>
+        )}
 
         <View style={styles.sectionHead}>
           <Text style={styles.sectionTitle}>{t.categories}</Text>
@@ -247,15 +299,35 @@ export function HomeEnScreen() {
             <MenuItem label={t.profileCareReminders} onPress={() => { setMenuOpen(false); nav.navigate('Main', { screen: 'Home' }); }} />
 
             <Text style={styles.drawerSection}>{t.profileSectionOrders}</Text>
-            <MenuItem label={t.profileOrders} onPress={() => { setMenuOpen(false); nav.navigate('Main', { screen: 'Chat' }); }} />
+            <MenuItem label={t.profileOrders} onPress={() => { setMenuOpen(false); nav.navigate('OrdersHistory'); }} />
             <MenuItem label={t.profileCart} onPress={() => { setMenuOpen(false); nav.navigate('Main', { screen: 'Cart' }); }} />
             <MenuItem label={t.profileAddresses} onPress={() => { setMenuOpen(false); nav.navigate('Addresses'); }} />
-            <MenuItem label={t.profilePayment} onPress={() => { setMenuOpen(false); nav.navigate('Checkout'); }} />
+            <MenuItem
+              label={t.profileUpdatePaymentMethod}
+              onPress={() => { setMenuOpen(false); nav.navigate('Checkout', { openVisaModal: true, visaModalStep: 'form' }); }}
+            />
             <MenuItem label={t.profilePharmacies} onPress={() => { setMenuOpen(false); nav.navigate('PharmacyList'); }} />
 
             <Text style={styles.drawerSection}>{t.profileSectionSupport}</Text>
             <MenuItem label={t.profileNotifications} onPress={() => { setMenuOpen(false); Alert.alert(t.profileNotifications, 'Notification preferences would be managed here.'); }} />
-            <MenuItem label={t.profileHelp} onPress={() => { setMenuOpen(false); Linking.openURL('mailto:support@vitalis.health').catch(() => {}); }} />
+            <MenuItem
+              label={t.profileHelp}
+              onPress={() => {
+                setMenuOpen(false);
+                const SUPPORT_PHONE_TEL = 'tel:+18005550199';
+                const SUPPORT_EMAIL_MAILTO = 'mailto:support@vitalis.health';
+                Alert.alert(
+                  t.profileHelp,
+                  'Choose a contact method',
+                  [
+                    { text: 'Call support', onPress: () => Linking.openURL(SUPPORT_PHONE_TEL).catch(() => {}) },
+                    { text: 'Email support', onPress: () => Linking.openURL(SUPPORT_EMAIL_MAILTO).catch(() => {}) },
+                    { text: 'Cancel', style: 'cancel' },
+                  ],
+                  { cancelable: true }
+                );
+              }}
+            />
             <MenuItem label={t.profilePrivacy} onPress={() => { setMenuOpen(false); Linking.openURL('https://vitalis.health/privacy').catch(() => {}); }} />
             <MenuItem label={t.profileTerms} onPress={() => { setMenuOpen(false); Linking.openURL('https://vitalis.health/terms').catch(() => {}); }} />
           </ScrollView>
@@ -326,6 +398,80 @@ function NearbyCard({
   );
 }
 
+function OrderTrackerOnHome({
+  styles,
+  colors,
+  locale,
+  status,
+  onOpen,
+}: {
+  styles: ReturnType<typeof createHomeEnStyles>;
+  colors: ThemeColors;
+  locale: string;
+  status: OrderStatus;
+  onOpen: () => void;
+}) {
+  const useGoogleMaps =
+    Platform.OS === 'android' || (Platform.OS === 'ios' && Boolean(process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY));
+  const mapProvider = useGoogleMaps ? PROVIDER_GOOGLE : undefined;
+  const useNativeMap = Platform.OS !== 'web';
+
+  const statusTxt =
+    locale === 'ar'
+      ? status === 'Placed'
+        ? 'تم الاستلام'
+        : status === 'Preparing'
+          ? 'قيد التحضير'
+          : status === 'On the Way'
+            ? 'في الطريق'
+            : 'تم التسليم'
+      : status;
+
+  const start = ORDER_ROUTE[0];
+  const end = ORDER_ROUTE[ORDER_ROUTE.length - 1];
+  const mid = {
+    latitude: (start.latitude + end.latitude) / 2,
+    longitude: (start.longitude + end.longitude) / 2,
+    latitudeDelta: 0.08,
+    longitudeDelta: 0.08,
+  };
+
+  return (
+    <Pressable style={styles.orderTrackerWrap} onPress={onOpen} accessibilityRole="button">
+      {useNativeMap ? (
+        <MapView
+          style={styles.orderMap}
+          initialRegion={mid}
+          provider={mapProvider}
+          scrollEnabled
+          zoomEnabled
+          pitchEnabled={false}
+          rotateEnabled={false}
+          toolbarEnabled={false}
+          showsUserLocation={false}
+          showsCompass={false}
+        >
+          <Polyline coordinates={[...ORDER_ROUTE]} strokeColor={colors.primary} strokeWidth={4} />
+          <Marker coordinate={end} title="Delivery" tracksViewChanges={false}>
+            <View style={[styles.orderMarker, { backgroundColor: colors.surfaceContainerLow, borderColor: colors.primary }]}>
+              <MaterialCommunityIcons name="home-map-marker" size={18} color={colors.primary} />
+            </View>
+          </Marker>
+        </MapView>
+      ) : (
+        <Image source={{ uri: imagesB2.orderMap }} style={styles.orderMap} contentFit="cover" />
+      )}
+
+      <Text style={styles.orderTrackingLabel}>{locale === 'ar' ? 'يتم تتبع الطلب' : 'Tracking order'}</Text>
+      <View style={styles.orderStatusRow}>
+        <View style={styles.orderStatusPill}>
+          <Text style={styles.orderStatusTxt}>{statusTxt}</Text>
+        </View>
+      </View>
+    </Pressable>
+  );
+}
+
 function createHomeEnStyles(c: ThemeColors, isDark: boolean) {
   return StyleSheet.create({
     root: { flex: 1, backgroundColor: screenRootBg(isDark, c.background) },
@@ -336,6 +482,18 @@ function createHomeEnStyles(c: ThemeColors, isDark: boolean) {
       paddingHorizontal: 24,
       paddingBottom: 12,
       backgroundColor: c.headerBar,
+    },
+    headerLead: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+    logoBtn: { width: 30, height: 30, alignItems: 'center', justifyContent: 'center' },
+    logo: { width: 64, height: 100 },
+    logoAr: { transform: [{ rotate: '-15deg' }] },
+    logoEn: { transform: [{ scaleX: -1 }, { rotate: '-15deg' }] },
+    avatar: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: c.outlineVariant,
     },
     deliverLabel: {
       fontSize: 10,
@@ -348,6 +506,28 @@ function createHomeEnStyles(c: ThemeColors, isDark: boolean) {
     deliverRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
     deliverValue: { fontSize: 18, fontWeight: '700', color: c.onSurface },
     headerActions: { flexDirection: 'row', gap: 12 },
+    langSwitch: {
+      minWidth: 44,
+      height: 38,
+      borderRadius: 12,
+      borderWidth: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderColor: c.outlineVariant,
+      backgroundColor: c.surfaceContainerLow,
+      padding: 2,
+    },
+    langTxt: { fontSize: 11, fontWeight: '800', color: c.primary, letterSpacing: 0.4 },
+    themeBtn: {
+      width: 38,
+      height: 38,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: c.outlineVariant,
+      backgroundColor: c.surfaceContainerLow,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
     iconCircle: {
       width: 40,
       height: 40,
@@ -497,6 +677,59 @@ function createHomeEnStyles(c: ThemeColors, isDark: boolean) {
       borderRadius: 70,
       opacity: 0.9,
     },
+    orderTrackerWrap: {
+      borderRadius: 24,
+      overflow: 'hidden',
+      backgroundColor: 'transparent',
+      marginBottom: 28,
+      borderWidth: 1,
+      borderColor: c.primary,
+      position: 'relative',
+    },
+    orderMap: { width: '100%', height: 200 },
+    orderMarker: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      borderWidth: 2,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    orderStatusRow: {
+      position: 'absolute',
+      left: 16,
+      right: 16,
+      bottom: 14,
+      paddingHorizontal: 0,
+      paddingVertical: 0,
+      backgroundColor: 'transparent',
+      borderTopWidth: 0,
+    },
+    orderStatusPill: {
+      alignSelf: 'flex-start',
+      backgroundColor: 'rgba(0,0,0,0.28)',
+      borderRadius: 999,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderWidth: 1,
+      borderColor: c.primary,
+    },
+    orderTrackingLabel: {
+      position: 'absolute',
+      top: 14,
+      left: 16,
+      backgroundColor: 'rgba(0,0,0,0.28)',
+      borderWidth: 1,
+      borderColor: c.primary,
+      borderRadius: 999,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      color: '#fff',
+      fontSize: 12,
+      fontWeight: '700',
+      textAlign: 'left',
+    },
+    orderStatusTxt: { fontSize: 12, fontWeight: '900', color: '#fff' },
     nearby: {
       flexDirection: 'row',
       backgroundColor: c.surfaceContainerLow,

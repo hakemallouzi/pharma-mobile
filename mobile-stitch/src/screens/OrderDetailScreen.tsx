@@ -6,6 +6,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { imagesB2 } from '../assets/imagesBatch2';
+import { useLocale } from '../context/LocaleContext';
 import type { RootStackParamList } from '../navigation/navigationTypes';
 import { ClinicalHeader } from '../components/ClinicalHeader';
 import type { ThemeColors } from '../theme/palettes';
@@ -98,6 +99,7 @@ function presentContactSupport(orderId: string) {
 
 export function OrderDetailScreen({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
+  const { locale } = useLocale();
   const { colors, isDark } = useTheme();
   const styles = useMemo(() => createOrderDetailStyles(colors, isDark), [colors, isDark]);
   const id = route.params?.orderId ?? '#VH-98210-XC';
@@ -110,6 +112,11 @@ export function OrderDetailScreen({ navigation, route }: Props) {
     (Platform.OS === 'ios' && Boolean(process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY));
   const mapProvider = useGoogleMaps ? PROVIDER_GOOGLE : undefined;
   const useNativeMap = Platform.OS !== 'web';
+
+  // PersistentBottomNav is absolutely positioned at the bottom.
+  // Reserve space so content isn't covered.
+  const bottomNavInset = Math.max(insets.bottom, 10);
+  const bottomNavOverlayHeight = 67 + bottomNavInset;
 
   const focusCourier = () => {
     mapRef.current?.animateToRegion(
@@ -125,11 +132,15 @@ export function OrderDetailScreen({ navigation, route }: Props) {
   return (
     <View style={styles.root}>
       <ClinicalHeader
-        title="Order Details"
+        title={locale === 'ar' ? 'تفاصيل الطلب' : 'Order Details'}
         onBack={() => navigation.goBack()}
-        right={<Text style={styles.brand}>The Clinical Atelier</Text>}
       />
-      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 32, paddingHorizontal: 20 }}>
+      <ScrollView
+        contentContainerStyle={{
+          paddingBottom: bottomNavOverlayHeight + 32,
+          paddingHorizontal: 20,
+        }}
+      >
         <View style={styles.mapCard}>
           {useNativeMap ? (
             <MapView
@@ -360,10 +371,10 @@ function createOrderDetailStyles(c: ThemeColors, isDark: boolean) {
     root: { flex: 1, backgroundColor: screenRootBg(isDark, c.background) },
     brand: { color: c.primary, fontWeight: '800', fontSize: 12, maxWidth: 140, textAlign: 'right' },
     mapCard: {
-      height: 280,
-      borderRadius: 26,
+      height: 230,
+      borderRadius: 22,
       overflow: 'hidden',
-      backgroundColor: c.surfaceContainerLow,
+      backgroundColor: c.primaryContainer,
       marginBottom: 16,
     },
     mapView: { width: '100%', height: '100%' },
@@ -388,9 +399,9 @@ function createOrderDetailStyles(c: ThemeColors, isDark: boolean) {
       bottom: 14,
       left: 14,
       right: 14,
-      backgroundColor: c.hintPanel,
-      borderRadius: 18,
-      padding: 16,
+      backgroundColor: c.primaryContainer,
+      borderRadius: 16,
+      padding: 12,
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',

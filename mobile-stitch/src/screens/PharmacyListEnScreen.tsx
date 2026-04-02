@@ -469,11 +469,8 @@ export function PharmacyListEnScreen({
               icon={p.icon}
               open={p.open}
               primaryButton={p.primaryButton}
-              onPress={() => {
-                setSelectedPharmacy(p);
-                scrollRef.current?.scrollTo({ y: 0, animated: true });
-              }}
-              onViewDetails={() =>
+              // Tapping the card should show its details page.
+              onPress={() =>
                 rootNav.navigate('PharmacyDetail', {
                   pharmacyName: p.name,
                   pharmacyInfo: p.info,
@@ -487,6 +484,11 @@ export function PharmacyListEnScreen({
                   longitude: p.longitude,
                 })
               }
+              // "See location" should just move the user to the map section.
+              onViewDetails={() => {
+                setSelectedPharmacy(p);
+                scrollRef.current?.scrollTo({ y: 0, animated: true });
+              }}
             />
           ))}
         </View>
@@ -509,9 +511,6 @@ export function PharmacyListEnScreen({
         <View style={styles.headerRight}>
           <Pressable hitSlop={8} onPress={() => rootNav.navigate('Main', { screen: 'Search' })}>
             <MaterialCommunityIcons name="magnify" size={24} color={colors.primary} />
-          </Pressable>
-          <Pressable hitSlop={8} onPress={() => rootNav.navigate('Main', { screen: 'Profile' })}>
-            <MaterialCommunityIcons name="dots-vertical" size={24} color={colors.primary} />
           </Pressable>
         </View>
       </View>
@@ -551,7 +550,7 @@ function PharmacyCard({
   onPress?: () => void;
   onViewDetails?: () => void;
 }) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   return (
     <Pressable style={[styles.card, !open && styles.cardMuted]} onPress={onPress}>
       <View style={styles.badgeWrap}>
@@ -617,7 +616,7 @@ function PharmacyCard({
               !open && styles.ctaTextDisabled,
             ]}
           >
-            {t.viewDetails}
+            {locale === 'ar' ? 'عرض الموقع' : 'See location'}
           </Text>
           <MaterialCommunityIcons
             name="arrow-right"
@@ -671,6 +670,13 @@ function createPharmacyListEnStyles(c: ThemeColors) {
     },
     headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 16 },
     headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    headerAvatar: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: c.outlineVariant,
+    },
     title: {
       fontSize: 18,
       fontWeight: '800',

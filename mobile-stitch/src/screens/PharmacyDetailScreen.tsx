@@ -65,13 +65,17 @@ export function PharmacyDetailScreen({ navigation, route }: Props) {
     contact,
   }));
   const detailImage = pharmacyImage ?? images.heroPharmacyEn;
+  // PersistentBottomNav is absolutely positioned at the bottom,
+  // so reserve space for it to avoid overlaying lower content.
+  const bottomNavInset = Math.max(insets.bottom, 10);
+  const bottomNavOverlayHeight = 67 + bottomNavInset;
 
   return (
     <View style={styles.root}>
       <ScrollView
         style={styles.scroll}
         contentInsetAdjustmentBehavior="never"
-        contentContainerStyle={{ paddingBottom: insets.bottom + 18 }}
+        contentContainerStyle={{ paddingBottom: bottomNavOverlayHeight + 24 }}
       >
         <View style={styles.imageWrap}>
           <Image source={{ uri: detailImage }} style={styles.image} contentFit="cover" contentPosition="center" />

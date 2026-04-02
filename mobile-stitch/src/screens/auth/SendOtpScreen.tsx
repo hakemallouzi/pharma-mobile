@@ -1,11 +1,14 @@
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useMemo, useState } from 'react';
-import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { getCountries, getCountryCallingCode } from 'libphonenumber-js';
+import type { CountryCode } from 'libphonenumber-js';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { imagesB2 } from '../../assets/imagesBatch2';
+import { useLocale } from '../../context/LocaleContext';
 import type { RootStackParamList } from '../../navigation/navigationTypes';
 import type { ThemeColors } from '../../theme/palettes';
 import { screenRootBg } from '../../theme/screenBackground';
@@ -14,22 +17,54 @@ import { ClinicalHeader } from '../../components/ClinicalHeader';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'SendOtp'>;
 
+type CountryOption = {
+  iso2: CountryCode;
+  dialCode: string;
+  placeholder: string;
+};
+
 export function SendOtpScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
+  const { locale } = useLocale();
   const { colors, isDark } = useTheme();
   const styles = useMemo(() => createSendOtpStyles(colors, isDark), [colors, isDark]);
   const [phone, setPhone] = useState('');
+  const allCountries = useMemo(() => {
+    // Returns ISO2 region codes (e.g. 'JO', 'US', 'AE') that libphonenumber understands.
+    const iso2List = getCountries();
+    return iso2List
+      .map((iso2) => {
+        const code = getCountryCallingCode(iso2);
+        if (!code) return null;
+        return {
+          iso2,
+          dialCode: `+${code}`,
+          placeholder: '000-000-0000',
+        } as CountryOption;
+      })
+      .filter((x): x is CountryOption => x !== null)
+      .sort((a, b) => a.iso2.localeCompare(b.iso2));
+  }, []);
+
+  const [selectedCountry, setSelectedCountry] = useState<CountryOption>(() => ({
+    iso2: 'JO' as CountryCode,
+    dialCode: `+${getCountryCallingCode('JO') ?? '962'}`,
+    placeholder: '000-000-0000',
+  }));
+  const [countryPickerOpen, setCountryPickerOpen] = useState(false);
+  const [countrySearch, setCountrySearch] = useState('');
+
+  const filteredCountries = useMemo(() => {
+    const q = countrySearch.trim().toLowerCase();
+    if (!q) return allCountries;
+    return allCountries.filter((c) => c.iso2.toLowerCase().includes(q) || c.dialCode.includes(q));
+  }, [allCountries, countrySearch]);
 
   return (
     <View style={styles.root}>
       <ClinicalHeader
-        title="The Clinical Atelier"
+        title={locale === 'ar' ? 'ذا كلينيكال أتيليه' : 'The Clinical Atelier'}
         onBack={() => navigation.goBack()}
-        right={
-          <Pressable hitSlop={8} onPress={() => Alert.alert('Menu', 'Additional options coming soon.')}>
-            <MaterialCommunityIcons name="dots-vertical" size={24} color={colors.primary} />
-          </Pressable>
-        }
       />
       <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 32, paddingHorizontal: 24 }}>
         <View style={styles.badge}>
@@ -46,13 +81,20 @@ export function SendOtpScreen({ navigation }: Props) {
 
         <Text style={styles.label}>Phone Registry</Text>
         <View style={styles.phoneRow}>
-          <View style={styles.country}>
-            <Text style={styles.countryText}>+1 US</Text>
+          <Pressable
+            style={styles.country}
+            onPress={() => setCountryPickerOpen(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Select country code"
+          >
+            <Text style={styles.countryText}>
+              {selectedCountry.iso2} {selectedCountry.dialCode}
+            </Text>
             <MaterialCommunityIcons name="chevron-down" size={20} color={colors.onSurfaceVariant} />
-          </View>
+          </Pressable>
           <TextInput
             style={styles.phoneInput}
-            placeholder="000-000-0000"
+            placeholder={selectedCountry.placeholder}
             placeholderTextColor={colors.outline}
             keyboardType="phone-pad"
             value={phone}
@@ -96,6 +138,66 @@ export function SendOtpScreen({ navigation }: Props) {
         <Pressable onPress={() => Linking.openURL('mailto:support@vitalis.health').catch(() => {})}>
           <Text style={styles.helpLink}>Contact Clinical Support</Text>
         </Pressable>
+
+        <Modal
+          visible={countryPickerOpen}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setCountryPickerOpen(false)}
+        >
+          <Pressable style={styles.countryBackdrop} onPress={() => setCountryPickerOpen(false)} />
+          <View style={[styles.countrySheet, { top: insets.top + 12, bottom: insets.bottom + 24 }]}>
+            <View style={styles.countrySheetHead}>
+              <Text style={styles.countrySheetTitle}>{locale === 'ar' ? 'اختر الدولة' : 'Select country'}</Text>
+              <Pressable
+                style={styles.countryCloseBtn}
+                onPress={() => setCountryPickerOpen(false)}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Close country picker"
+              >
+                <MaterialCommunityIcons name="close" size={18} color={colors.primary} />
+              </Pressable>
+            </View>
+            <View style={styles.countrySearchRow}>
+              <MaterialCommunityIcons name="magnify" size={18} color={colors.onSurfaceVariant} />
+              <TextInput
+                style={styles.countrySearchInput}
+                placeholder={locale === 'ar' ? 'ابحث (مثل: jo أو +962)' : 'Search (e.g. JO or +962)'}
+                placeholderTextColor={colors.outline}
+                value={countrySearch}
+                onChangeText={setCountrySearch}
+                autoCapitalize="characters"
+              />
+            </View>
+            <ScrollView style={styles.countryOptionsWrap} showsVerticalScrollIndicator={false}>
+              {filteredCountries.map((c) => {
+                const isOn = c.iso2 === selectedCountry.iso2;
+              return (
+                <Pressable
+                  key={c.iso2}
+                  style={[styles.countryOption, isOn && { borderColor: colors.primary }]}
+                  onPress={() => {
+                    setSelectedCountry(c);
+                    setCountryPickerOpen(false);
+                    setPhone('');
+                  }}
+                  accessibilityRole="button"
+                >
+                  <Text style={[styles.countryOptionTxt, isOn && { color: colors.primary }]}>
+                    {`${c.iso2} ${c.dialCode}`}
+                  </Text>
+                  {isOn ? (
+                    <MaterialCommunityIcons name="check" size={18} color={colors.primary} />
+                  ) : (
+                    <View style={{ width: 18 }} />
+                  )}
+                </Pressable>
+              );
+              })}
+            </ScrollView>
+          </View>
+        </Modal>
       </ScrollView>
     </View>
   );
@@ -155,6 +257,75 @@ function createSendOtpStyles(c: ThemeColors, isDark: boolean) {
       borderColor: c.outlineVariant,
     },
     infoText: { flex: 1, fontSize: 12, color: c.onSurfaceVariant, lineHeight: 18 },
+    countryBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)' },
+    countrySheet: {
+      position: 'absolute',
+      left: 24,
+      right: 24,
+      backgroundColor: c.surface,
+      borderRadius: 22,
+      paddingHorizontal: 16,
+      paddingBottom: 18,
+      borderWidth: 1,
+      borderColor: c.outlineVariant,
+      overflow: 'hidden',
+    },
+    countrySheetTitle: {
+      fontSize: 14,
+      fontWeight: '900',
+      color: c.primary,
+      marginBottom: 0,
+    },
+    countrySheetHead: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginTop: 8,
+      marginBottom: 10,
+    },
+    countryCloseBtn: {
+      width: 34,
+      height: 34,
+      borderRadius: 17,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: '#fff',
+      borderWidth: 1,
+      borderColor: c.primary,
+    },
+    countrySearchRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      borderRadius: 14,
+      backgroundColor: c.surfaceContainerHigh,
+      borderWidth: 1,
+      borderColor: c.outlineVariant,
+      marginBottom: 12,
+    },
+    countrySearchInput: {
+      flex: 1,
+      fontSize: 14,
+      fontWeight: '700',
+      color: c.onSurface,
+      paddingVertical: 0,
+    },
+    countryOption: {
+      minHeight: 46,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: c.outlineVariant,
+      backgroundColor: c.surfaceContainerLow,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 12,
+      marginBottom: 10,
+    },
+    countryOptionTxt: { fontSize: 13, fontWeight: '800', color: c.onSurfaceVariant },
+    countryOptionsWrap: { flex: 1 },
     sendBtn: {
       flexDirection: 'row',
       alignItems: 'center',

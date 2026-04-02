@@ -5,6 +5,7 @@ import { useAppNavigation } from '../navigation/useAppNavigation';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ClinicalHeader } from '../components/ClinicalHeader';
 import { SCREEN_CONTENT_GUTTER } from '../components/ScreenScroll';
+import { useLocale } from '../context/LocaleContext';
 import type { ThemeColors } from '../theme/palettes';
 import { screenRootBg } from '../theme/screenBackground';
 import { useTheme } from '../theme/ThemeContext';
@@ -13,6 +14,7 @@ const filters = ['All Orders', 'Processing', 'Delivered', 'Pending'] as const;
 
 export function OrdersHistoryScreen() {
   const insets = useSafeAreaInsets();
+  const { locale } = useLocale();
   const navigation = useAppNavigation();
   const { colors, isDark } = useTheme();
   const styles = useMemo(() => createOrdersHistoryStyles(colors, isDark), [colors, isDark]);
@@ -21,12 +23,7 @@ export function OrdersHistoryScreen() {
   return (
     <View style={styles.root}>
       <ClinicalHeader
-        title="The Clinical Atelier"
-        right={
-          <Pressable hitSlop={8}>
-            <MaterialCommunityIcons name="dots-vertical" size={24} color={colors.primary} />
-          </Pressable>
-        }
+        title={locale === 'ar' ? 'سجل الطلبات' : 'Order History'}
       />
       <ScrollView
         contentContainerStyle={{ paddingBottom: 100 + insets.bottom, paddingHorizontal: 24 }}

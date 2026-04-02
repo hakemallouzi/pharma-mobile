@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Pressable,
@@ -16,6 +16,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { imagesB2 } from '../../assets/imagesBatch2';
 import { useAuth } from '../../context/AuthContext';
+import { useLocale } from '../../context/LocaleContext';
 import type { ThemeColors } from '../../theme/palettes';
 import { screenRootBg } from '../../theme/screenBackground';
 import { useTheme } from '../../theme/ThemeContext';
@@ -28,9 +29,11 @@ type Props = NativeStackScreenProps<RootStackParamList, 'VerifyOtp'>;
 export function VerifyOtpScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const { signIn } = useAuth();
+  const { locale } = useLocale();
   const { colors, isDark } = useTheme();
   const styles = useMemo(() => createVerifyOtpStyles(colors, isDark), [colors, isDark]);
   const [digits, setDigits] = useState(['', '', '', '', '', '']);
+  const [secondsLeft, setSecondsLeft] = useState(120);
   const refs = useRef<(TextInputType | null)[]>([]);
 
   const setAt = (i: number, v: string) => {
@@ -41,16 +44,25 @@ export function VerifyOtpScreen({ navigation }: Props) {
     if (d && i < 5) refs.current[i + 1]?.focus();
   };
 
+  useEffect(() => {
+    const id = setInterval(() => {
+      setSecondsLeft((s) => (s > 0 ? s - 1 : 0));
+    }, 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const timerText = (() => {
+    // Show without leading zero (e.g. "2:00" not "02:00")
+    const mm = String(Math.floor(secondsLeft / 60));
+    const ss = String(secondsLeft % 60).padStart(2, '0');
+    return `Code expires in ${mm}:${ss}`;
+  })();
+
   return (
     <View style={styles.root}>
       <ClinicalHeader
-        title="The Clinical Atelier"
+        title={locale === 'ar' ? 'ذا كلينيكال أتيليه' : 'The Clinical Atelier'}
         onBack={() => navigation.goBack()}
-        right={
-          <Pressable hitSlop={8}>
-            <MaterialCommunityIcons name="dots-vertical" size={24} color={colors.primary} />
-          </Pressable>
-        }
       />
       <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 32, paddingHorizontal: 24 }}>
         <View style={styles.iconCircle}>
@@ -82,7 +94,7 @@ export function VerifyOtpScreen({ navigation }: Props) {
 
         <View style={styles.timerRow}>
           <MaterialCommunityIcons name="clock-outline" size={16} color={colors.onSurfaceVariant} />
-          <Text style={styles.timer}>Code expires in 01:54</Text>
+          <Text style={[styles.timer, { color: 'red' }]}>{timerText}</Text>
         </View>
         <Pressable onPress={() => Alert.alert('Code sent', 'A new verification code would be sent to your phone.')}>
           <Text style={styles.resend}>Resend Code</Text>
@@ -100,18 +112,6 @@ export function VerifyOtpScreen({ navigation }: Props) {
             <MaterialCommunityIcons name="arrow-right" size={20} color={colors.onPrimary} />
           </LinearGradient>
         </Pressable>
-
-        <View style={styles.helpCard}>
-          <MaterialCommunityIcons name="face-agent" size={28} color={colors.primary} />
-          <View style={{ flex: 1 }}>
-            <Text style={styles.helpTitle}>Need assistance?</Text>
-            <Text style={styles.helpBody}>
-              If you&apos;re having trouble receiving the code, contact Clinical Support or check your
-              network connectivity.
-            </Text>
-          </View>
-        </View>
-        <Image source={{ uri: imagesB2.verifyOtpHelp }} style={styles.helpImg} contentFit="cover" />
       </ScrollView>
     </View>
   );

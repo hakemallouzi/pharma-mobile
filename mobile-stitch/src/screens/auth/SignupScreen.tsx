@@ -13,6 +13,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
+import { useLocale } from '../../context/LocaleContext';
 import type { ThemeColors } from '../../theme/palettes';
 import { screenRootBg } from '../../theme/screenBackground';
 import { useTheme } from '../../theme/ThemeContext';
@@ -25,22 +26,21 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Signup'>;
 export function SignupScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const { signIn } = useAuth();
+  const { locale } = useLocale();
   const { colors, isDark } = useTheme();
   const styles = useMemo(() => createSignupStyles(colors, isDark), [colors, isDark]);
   const [terms, setTerms] = useState(false);
+  // PersistentBottomNav is absolutely positioned; reserve its space to prevent overlay.
+  const bottomNavInset = Math.max(insets.bottom, 10);
+  const bottomNavOverlayHeight = 67 + bottomNavInset;
 
   return (
     <View style={styles.root}>
       <ClinicalHeader
-        title="The Clinical Atelier"
+        title={locale === 'ar' ? 'ذا كلينيكال أتيليه' : 'The Clinical Atelier'}
         onBack={() => navigation.goBack()}
-        right={
-          <Pressable hitSlop={8}>
-            <MaterialCommunityIcons name="dots-vertical" size={24} color={colors.primary} />
-          </Pressable>
-        }
       />
-      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 32 }}>
+      <ScrollView contentContainerStyle={{ paddingBottom: bottomNavOverlayHeight + 24 }}>
         <View style={styles.hero}>
           <View style={styles.iconBox}>
             <MaterialCommunityIcons name="shield-check" size={40} color={colors.primary} />
@@ -169,13 +169,14 @@ function Field({
 
 function createSignupStyles(c: ThemeColors, isDark: boolean) {
   return StyleSheet.create({
-    root: { flex: 1, backgroundColor: screenRootBg(isDark, c.surfaceDim) },
+    // Use non-dim background for the registration landing page.
+    root: { flex: 1, backgroundColor: screenRootBg(isDark, c.surface) },
     hero: { alignItems: 'center', paddingHorizontal: 24, paddingTop: 16 },
     iconBox: {
       width: 64,
       height: 64,
       borderRadius: 16,
-      backgroundColor: c.surfaceContainerHigh,
+      backgroundColor: c.surface,
       alignItems: 'center',
       justifyContent: 'center',
       marginBottom: 16,
@@ -188,7 +189,7 @@ function createSignupStyles(c: ThemeColors, isDark: boolean) {
       margin: 24,
       padding: 28,
       borderRadius: 28,
-      backgroundColor: c.surfaceContainerLow,
+      backgroundColor: c.surface,
       borderWidth: 1,
       borderColor: c.outlineVariant,
     },
@@ -197,9 +198,11 @@ function createSignupStyles(c: ThemeColors, isDark: boolean) {
     fieldWrap: {
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: c.surfaceContainerHighest,
+      backgroundColor: c.surface,
       borderRadius: 14,
       paddingHorizontal: 14,
+      borderWidth: 1,
+      borderColor: c.outlineVariant,
     },
     fieldIcon: { marginRight: 8 },
     fieldInput: { flex: 1, paddingVertical: 14, color: c.onSurface, fontSize: 14 },

@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
 import type { Locale } from '../i18n/strings';
 import { strings } from '../i18n/strings';
@@ -12,12 +13,20 @@ type LocaleContextValue = {
 };
 
 const LocaleContext = createContext<LocaleContextValue | null>(null);
+const LOCALE_STORAGE_KEY = '@vitalis/locale';
 
 export function LocaleProvider({ children }: { children: React.ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>('en');
 
+  React.useEffect(() => {
+    AsyncStorage.getItem(LOCALE_STORAGE_KEY).then((stored) => {
+      if (stored === 'en' || stored === 'ar') setLocaleState(stored);
+    });
+  }, []);
+
   const setLocale = useCallback((l: Locale) => {
     setLocaleState(l);
+    AsyncStorage.setItem(LOCALE_STORAGE_KEY, l).catch(() => {});
   }, []);
 
   const value = useMemo<LocaleContextValue>(

@@ -27,16 +27,33 @@ export type RootStackParamList = {
   SendOtp: undefined;
   VerifyOtp: undefined;
   Addresses: undefined;
-  Checkout: { lines?: CheckoutCartLine[]; promoCode?: string } | undefined;
+  Checkout:
+    | {
+        lines?: CheckoutCartLine[];
+        promoCode?: string;
+        /** When opening from menu, auto-open the Visa modal for add/update. */
+        openVisaModal?: boolean;
+        /** Initial step inside Visa modal. */
+        visaModalStep?: 'menu' | 'form';
+      }
+    | undefined;
   OrderDetail: { orderId?: string };
   ProductList: { category?: string; query?: string };
   ProductDetail: {
     item: {
       category: string;
       title: string;
+      titleAr?: string;
       sub: string;
+      subAr?: string;
       price: string;
       priceValue: number;
+      /** Optional dose/pack variants (e.g. 200gm, 500gm). */
+      doses?: Array<{
+        label: string;
+        price?: string;
+        priceValue?: number;
+      }>;
       badge?: string;
       tertiary?: boolean;
       image: string;
@@ -65,7 +82,12 @@ export type RootStackParamList = {
   };
   SpecialistChat: {
     topic?: 'prescription' | 'general';
+    /** Optional text to prefill the chat input when opening from item/share. */
+    initialMessage?: string;
+    /** Optional image to show as preview before sending. */
+    initialImageUri?: string;
   };
+  OrdersHistory: undefined;
   BarcodeScan: undefined;
 };
 

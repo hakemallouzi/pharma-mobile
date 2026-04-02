@@ -1,4 +1,5 @@
 import { Image } from 'expo-image';
+import * as ImagePicker from 'expo-image-picker';
 import React, { useMemo } from 'react';
 import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -31,8 +32,8 @@ const DEMO_USER = {
 export function ProfileHubScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useAppNavigation();
-  const { signOut, isAuthenticated } = useAuth();
-  const { t, locale, setLocale, isRTL } = useLocale();
+  const { signOut, isAuthenticated, profileImageUri, setProfileImageUri } = useAuth();
+  const { t, locale, isRTL } = useLocale();
   const { colors, toggleScheme, isDark, scheme } = useTheme();
   const styles = useMemo(() => createProfileHubStyles(colors, isDark), [colors, isDark]);
   const [profile, setProfile] = React.useState(DEMO_USER);
@@ -73,15 +74,61 @@ export function ProfileHubScreen() {
     setEditMode(false);
   };
 
+  const uploadProfilePhoto = () => {
+    const title = locale === 'ar' ? 'صورة الملف الشخصي' : 'Profile Picture';
+    const message = locale === 'ar' ? 'اختر مصدر الصورة' : 'Choose image source';
+    Alert.alert(title, message, [
+      {
+        text: locale === 'ar' ? 'الكاميرا' : 'Camera',
+        onPress: async () => {
+          const perm = await ImagePicker.requestCameraPermissionsAsync();
+          if (!perm.granted) return;
+          const result = await ImagePicker.launchCameraAsync({
+            mediaTypes: ['images'],
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 0.9,
+          });
+          if (!result.canceled && result.assets?.[0]?.uri) {
+            setProfileImageUri(result.assets[0].uri);
+          }
+        },
+      },
+      {
+        text: locale === 'ar' ? 'المعرض' : 'Gallery',
+        onPress: async () => {
+          const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+          if (!perm.granted) return;
+          const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ['images'],
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 0.9,
+          });
+          if (!result.canceled && result.assets?.[0]?.uri) {
+            setProfileImageUri(result.assets[0].uri);
+          }
+        },
+      },
+      ...(profileImageUri
+        ? [
+            {
+              text: locale === 'ar' ? 'إزالة الصورة' : 'Remove photo',
+              style: 'destructive' as const,
+              onPress: () => setProfileImageUri(null),
+            },
+          ]
+        : []),
+      { text: locale === 'ar' ? 'إلغاء' : 'Cancel', style: 'cancel' },
+    ]);
+  };
+
   return (
     <View style={[styles.root, { direction: isRTL ? 'rtl' : 'ltr' }]}>
       <ClinicalHeader
         title={t.profileHubTitle}
         right={
           <View style={styles.headerIcons}>
-            <Pressable hitSlop={8} onPress={() => setLocale(locale === 'en' ? 'ar' : 'en')}>
-              <MaterialCommunityIcons name="translate" size={22} color={colors.mutedIcon} />
-            </Pressable>
             <Pressable hitSlop={8} onPress={toggleScheme} accessibilityRole="button" accessibilityLabel="Toggle theme">
               <MaterialCommunityIcons
                 name={isDark ? 'white-balance-sunny' : 'weather-night'}
@@ -102,7 +149,10 @@ export function ProfileHubScreen() {
           <View style={styles.blur} />
           <View style={styles.profileRow}>
             <View style={styles.avatarRing}>
-              <Image source={{ uri: imagesB2.profileAvatar }} style={styles.avatar} contentFit="cover" />
+              <Image source={{ uri: profileImageUri ?? imagesB2.profileAvatar }} style={styles.avatar} contentFit="cover" />
+              <Pressable style={styles.avatarUploadBtn} onPress={uploadProfilePhoto} hitSlop={8}>
+                <MaterialCommunityIcons name="camera-outline" size={14} color={colors.onPrimaryContainer} />
+              </Pressable>
             </View>
             <View style={styles.identityText}>
               {editMode ? (
@@ -405,12 +455,26 @@ function createProfileHubStyles(c: ThemeColors, isDark: boolean) {
     profileRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 16 },
     identityText: { flex: 1, minWidth: 0 },
     avatarRing: {
+      position: 'relative',
       padding: 3,
       borderRadius: 999,
       borderWidth: 2,
       borderColor: c.primary,
     },
     avatar: { width: 84, height: 84, borderRadius: 42 },
+    avatarUploadBtn: {
+      position: 'absolute',
+      right: -2,
+      bottom: -2,
+      width: 24,
+      height: 24,
+      borderRadius: 12,
+      backgroundColor: c.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: c.surface,
+    },
     name: { fontSize: 22, fontWeight: '800', color: c.onSurface },
     badge: {
       alignSelf: 'flex-start',

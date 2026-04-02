@@ -19,6 +19,7 @@ import { Image } from 'expo-image';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ClinicalHeader } from '../components/ClinicalHeader';
+import { useLocale } from '../context/LocaleContext';
 import type { ThemeColors } from '../theme/palettes';
 import { screenRootBg } from '../theme/screenBackground';
 import { useTheme } from '../theme/ThemeContext';
@@ -27,17 +28,24 @@ type ChatMsg = { id: string; from: 'specialist' | 'user'; text?: string; imageUr
 
 export function SpecialistChatTabScreen() {
   const TAB_BAR_CLEARANCE = 66;
+  const INPUT_HEIGHT_MIN = 40;
+  const INPUT_HEIGHT_MAX = 140;
   const insets = useSafeAreaInsets();
+  const { locale } = useLocale();
   const { colors, isDark } = useTheme();
   const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
   const [input, setInput] = useState('');
+  const [inputHeight, setInputHeight] = useState(INPUT_HEIGHT_MIN);
   const scrollRef = useRef<ScrollView>(null);
   const [keyboardOpen, setKeyboardOpen] = useState(false);
   const [msgs, setMsgs] = useState<ChatMsg[]>([
     {
       id: 'welcome',
       from: 'specialist',
-      text: 'Hi, I am your specialist pharmacist. How can I help you today?',
+      text:
+        locale === 'ar'
+          ? 'مرحبا، أنا الصيدلي المختص. كيف يمكنني مساعدتك اليوم؟'
+          : 'Hi, I am your specialist pharmacist. How can I help you today?',
     },
   ]);
 
@@ -66,6 +74,11 @@ export function SpecialistChatTabScreen() {
     };
   }, []);
 
+  useEffect(() => {
+    // When text is cleared, collapse the textarea back to the minimum height.
+    if (!input.trim()) setInputHeight(INPUT_HEIGHT_MIN);
+  }, [input]);
+
   const sendText = () => {
     if (!input.trim()) return;
     addMessage({ id: `${Date.now()}`, from: 'user', text: input.trim() });
@@ -73,9 +86,9 @@ export function SpecialistChatTabScreen() {
   };
 
   const uploadImage = async () => {
-    Alert.alert('Upload image', 'Choose image source', [
+    Alert.alert(locale === 'ar' ? 'رفع صورة' : 'Upload image', locale === 'ar' ? 'اختر مصدر الصورة' : 'Choose image source', [
       {
-        text: 'Take Photo',
+        text: locale === 'ar' ? 'التقاط صورة' : 'Take Photo',
         onPress: async () => {
           const perm = await ImagePicker.requestCameraPermissionsAsync();
           if (!perm.granted) return;
@@ -85,7 +98,7 @@ export function SpecialistChatTabScreen() {
         },
       },
       {
-        text: 'Choose from Gallery',
+        text: locale === 'ar' ? 'اختيار من المعرض' : 'Choose from Gallery',
         onPress: async () => {
           const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
           if (!perm.granted) return;
@@ -94,7 +107,7 @@ export function SpecialistChatTabScreen() {
           addMessage({ id: `${Date.now()}-img`, from: 'user', imageUri: result.assets[0].uri });
         },
       },
-      { text: 'Cancel', style: 'cancel' },
+      { text: locale === 'ar' ? 'إلغاء' : 'Cancel', style: 'cancel' },
     ]);
   };
 
@@ -105,7 +118,8 @@ export function SpecialistChatTabScreen() {
       keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}
     >
       <ClinicalHeader
-        title="Specialist Pharmacist"
+        title={locale === 'ar' ? 'الصيدلي المختص' : 'Specialist Pharmacist'}
+        showGlobalControls={false}
         right={
           <Pressable
             hitSlop={8}
@@ -120,7 +134,10 @@ export function SpecialistChatTabScreen() {
         ref={scrollRef}
         style={styles.chatScroll}
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 16 + insets.bottom + TAB_BAR_CLEARANCE }}
+        contentContainerStyle={{
+          paddingHorizontal: 16,
+          paddingBottom: 16 + insets.bottom + TAB_BAR_CLEARANCE + (inputHeight - INPUT_HEIGHT_MIN),
+        }}
         onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
       >
         {msgs.map((m) => (
@@ -140,12 +157,18 @@ export function SpecialistChatTabScreen() {
           <MaterialCommunityIcons name="image-plus" size={22} color={colors.primary} />
         </Pressable>
         <TextInput
-          style={styles.input}
+          style={[styles.input, { height: inputHeight }]}
           value={input}
           onChangeText={setInput}
-          placeholder="Type a message..."
+          placeholder={locale === 'ar' ? 'اكتب رسالة...' : 'Type a message...'}
           placeholderTextColor={colors.outline}
           onFocus={() => scrollRef.current?.scrollToEnd({ animated: true })}
+          multiline
+          textAlignVertical="top"
+          onContentSizeChange={(e) => {
+            const next = Math.max(INPUT_HEIGHT_MIN, Math.min(INPUT_HEIGHT_MAX, e.nativeEvent.contentSize.height));
+            setInputHeight(next);
+          }}
         />
         <Pressable style={styles.sendBtn} onPress={sendText}>
           <MaterialCommunityIcons name="send" size={18} color={colors.onPrimaryContainer} />
@@ -177,7 +200,7 @@ function createStyles(c: ThemeColors, isDark: boolean) {
       paddingHorizontal: 12,
       paddingTop: 10,
       flexDirection: 'row',
-      alignItems: 'center',
+      alignItems: 'flex-start',
       gap: 8,
     },
     iconBtn: {
@@ -190,10 +213,11 @@ function createStyles(c: ThemeColors, isDark: boolean) {
     },
     input: {
       flex: 1,
-      height: 40,
+      minHeight: 40,
       borderRadius: 12,
       backgroundColor: c.surfaceContainerLow,
       paddingHorizontal: 12,
+      paddingTop: 10,
       color: c.onSurface,
     },
     sendBtn: {

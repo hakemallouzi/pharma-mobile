@@ -5,7 +5,6 @@ import { HomeScreen } from '../screens/HomeScreen';
 import { ProfileHubScreen } from '../screens/ProfileHubScreen';
 import { SearchScreen } from '../screens/SearchScreen';
 import { SpecialistChatTabScreen } from '../screens/SpecialistChatTabScreen';
-import { GlassTabBar } from '../components/GlassTabBar';
 import type { MainTabParamList } from './navigationTypes';
 import { useTheme } from '../theme/ThemeContext';
 
@@ -20,8 +19,7 @@ export function MainTabs() {
   );
   return (
     <Tab.Navigator
-      tabBar={(props) => <GlassTabBar {...props} />}
-      screenOptions={{ headerShown: false, sceneStyle }}
+      screenOptions={{ headerShown: false, sceneStyle, tabBarStyle: { display: 'none' } }}
     >
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Search" component={SearchScreen} />

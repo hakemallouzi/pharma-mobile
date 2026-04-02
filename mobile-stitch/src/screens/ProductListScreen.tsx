@@ -2,7 +2,7 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import Slider from '@react-native-community/slider';
 import React, { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -10,6 +10,7 @@ import { imagesB2 } from '../assets/imagesBatch2';
 import type { RootStackParamList } from '../navigation/navigationTypes';
 import { ClinicalHeader } from '../components/ClinicalHeader';
 import { useCart } from '../context/CartContext';
+import { useLocale } from '../context/LocaleContext';
 import type { ThemeColors } from '../theme/palettes';
 import { screenRootBg } from '../theme/screenBackground';
 import { useTheme } from '../theme/ThemeContext';
@@ -19,9 +20,17 @@ type Props = NativeStackScreenProps<RootStackParamList, 'ProductList'>;
 type Product = {
   category: string;
   title: string;
+  titleAr: string;
   sub: string;
+  subAr: string;
   price: string;
   priceValue: number;
+  /** Optional dose/pack variants (e.g. 200gm, 500gm). */
+  doses?: Array<{
+    label: string;
+    price?: string;
+    priceValue?: number;
+  }>;
   badge?: string;
   tertiary?: boolean;
   image: string;
@@ -100,18 +109,113 @@ const CATEGORY_MOCK_TITLES = {
   ],
 } as const;
 
+const CATEGORY_MOCK_TITLES_AR = {
+  Medicines: [
+    'باراسيتامول راحة سريعة',
+    'إيبوبروفين بلس',
+    'تركيبة البرد الليلية',
+    'أقراص راحة الجيوب',
+    'شراب تهدئة السعال',
+    'كبسولات حماية الحساسية',
+    'راحة الهضم',
+    'مضاد الحموضة الفوري',
+    'باقة الدفاع ضد الإنفلونزا',
+    'مضاد حموضة سريع الذوبان',
+    'كبسولات جل لتسكين الألم',
+    'مستحلبات التهاب الحلق',
+    'رذاذ الأنف المريح',
+    'مزيج ترطيب الأملاح',
+    'أقراص دوار السفر',
+  ],
+  Vitamins: [
+    'فيتامين د3 ليبوسومال',
+    'أوميغا 3 سوبر',
+    'مركب فيتامين ب ميثيل',
+    'زنك مخلبي',
+    'فيتامين سي 1000',
+    'مغنيسيوم جلايسينات',
+    'حديد لطيف الإطلاق',
+    'كالسيوم + ك2',
+    'بيوتين بوست',
+    'ملتي فيتامين يومي للنساء',
+    'ملتي فيتامين يومي للرجال',
+    'خليط دعم المناعة',
+    'كوإنزيم كيو10 المتقدم',
+    'بروبيوتك 20 مليار',
+    'معادن إلكتروليت',
+  ],
+  'Baby Care': [
+    'قطرات فيتامين للرضع',
+    'بروبيوتك للرضع',
+    'كريم طفح لطيف',
+    'جل تهدئة التسنين',
+    'شراب مناعة للأطفال',
+    'غسول للبشرة الحساسة',
+    'قطرات مغص مهدئة',
+    'ملتي فيتامين قابل للمضغ',
+    'رذاذ ملحي للأنف',
+    'مرهم حاجز مرطب',
+    'مزيج إلكتروليت للأطفال',
+    'لوشن نوم مهدئ',
+    'كريم حفاضات لطيف',
+    'حلوى أوميغا للأطفال',
+    'لوشن ترطيب الطفل',
+  ],
+  Skincare: [
+    'سيروم إصلاح الترطيب',
+    'حماية يومية SPF 50',
+    'معزز نياسيناميد',
+    'رغوة تنظيف لطيفة',
+    'كريم تجديد ليلي',
+    'جل تفتيح فيتامين سي',
+    'مرطب هيالورونيك',
+    'بلسم إصلاح الحاجز',
+    'تونر منقي',
+    'رذاذ تعافي الألوفيرا',
+    'كريم عين بالببتيد',
+    'مزيج ريتينول ليلي',
+    'جل تصحيح البقع',
+    'إيسنس تهدئة البشرة',
+    'كريم ترطيب بالسيراميد',
+  ],
+} as const;
+
 const products: Product[] = (Object.entries(CATEGORY_MOCK_TITLES) as Array<[string, readonly string[]]>).flatMap(
   ([category, titles], categoryIndex) =>
     titles.map((title, itemIndex) => {
+      const titleAr = CATEGORY_MOCK_TITLES_AR[category as keyof typeof CATEGORY_MOCK_TITLES_AR][itemIndex] ?? title;
       const priceValue = 26 + ((itemIndex * 7 + categoryIndex * 5) % 55);
+      const dose200PriceValue = priceValue;
+      const dose500PriceValue = Math.round(dose200PriceValue * 1.8 * 100) / 100;
       const badge =
         itemIndex % 6 === 0 ? 'Pure Grade' : itemIndex % 5 === 0 ? 'Bestseller' : undefined;
+      const categoryAr =
+        category === 'Medicines'
+          ? 'الأدوية'
+          : category === 'Vitamins'
+            ? 'الفيتامينات'
+            : category === 'Baby Care'
+              ? 'العناية بالطفل'
+              : category === 'Skincare'
+                ? 'العناية بالبشرة'
+                : category;
       return {
         category,
         title,
+        titleAr,
         sub: `${category} support formula designed for reliable daily care and wellness.`,
-        price: `$${priceValue.toFixed(2)}`,
-        priceValue,
+        subAr: `تركيبة داعمة من ${categoryAr} مصممة للعناية اليومية الموثوقة وتعزيز الصحة.`,
+        // For now, all medicines have dose/pack options.
+        // We treat `price` as the default dose (200gm).
+        price: `$${dose200PriceValue.toFixed(2)}`,
+        priceValue: dose200PriceValue,
+        doses:
+          category === 'Medicines'
+            ? [
+                { label: '200gm', price: `$${dose200PriceValue.toFixed(2)}`, priceValue: dose200PriceValue },
+                { label: '500gm', price: `$${dose500PriceValue.toFixed(2)}`, priceValue: dose500PriceValue },
+              ]
+            : undefined,
         badge,
         tertiary: badge === 'Bestseller',
         image: PRODUCT_IMAGES[itemIndex % PRODUCT_IMAGES.length],
@@ -137,10 +241,13 @@ function matchesQuery(p: Product, q: string | undefined) {
 
 export function ProductListScreen({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
+  const { locale, isRTL } = useLocale();
+  const isArabic = locale === 'ar';
   const { colors, isDark } = useTheme();
   const styles = useMemo(() => createProductListStyles(colors, isDark), [colors, isDark]);
   const cat = route.params?.category ?? 'Vitamins';
   const query = route.params?.query;
+  const [searchText, setSearchText] = useState(query ?? '');
   const [selectedCategory, setSelectedCategory] = useState(cat);
 
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -150,7 +257,22 @@ export function ProductListScreen({ navigation, route }: Props) {
   const [draftMaxPrice, setDraftMaxPrice] = useState(PRICE_SLIDER_MAX);
   const [draftFPure, setDraftFPure] = useState(false);
   const [draftFBestseller, setDraftFBestseller] = useState(false);
-  const { addItem, removeItem, cartCount, lines } = useCart();
+  const { addItem, removeItem, lines } = useCart();
+  const categoryLabel = (value: string) => {
+    if (!isArabic) return value;
+    if (value === 'All') return 'الكل';
+    if (value === 'Medicines') return 'الأدوية';
+    if (value === 'Vitamins') return 'الفيتامينات';
+    if (value === 'Baby Care') return 'العناية بالطفل';
+    if (value === 'Skincare') return 'العناية بالبشرة';
+    return value;
+  };
+  const badgeLabel = (value?: string) => {
+    if (!value || !isArabic) return value;
+    if (value === 'Pure Grade') return 'درجة نقاء';
+    if (value === 'Bestseller') return 'الأكثر مبيعا';
+    return value;
+  };
 
   const filteredProducts = useMemo(() => {
     const tagOn = fPure || fBestseller;
@@ -158,7 +280,7 @@ export function ProductListScreen({ navigation, route }: Props) {
 
     return products.filter((p) => {
       if (selectedCategory !== 'All' && p.category !== selectedCategory) return false;
-      if (!matchesQuery(p, query)) return false;
+      if (!matchesQuery(p, searchText)) return false;
       if (capActive && p.priceValue > maxPrice) return false;
       if (tagOn) {
         const okPure = fPure && p.badge === 'Pure Grade';
@@ -167,7 +289,7 @@ export function ProductListScreen({ navigation, route }: Props) {
       }
       return true;
     });
-  }, [selectedCategory, query, maxPrice, fPure, fBestseller]);
+  }, [selectedCategory, searchText, maxPrice, fPure, fBestseller]);
   const progressPercent = products.length
     ? Math.max(0, Math.min(100, (filteredProducts.length / products.length) * 100))
     : 0;
@@ -216,7 +338,7 @@ export function ProductListScreen({ navigation, route }: Props) {
   }) => (
     <Pressable
       onPress={onToggle}
-      style={styles.checkRow}
+      style={[styles.checkRow, isRTL && styles.rowReverse]}
       accessibilityRole="checkbox"
       accessibilityState={{ checked }}
     >
@@ -229,46 +351,44 @@ export function ProductListScreen({ navigation, route }: Props) {
     </Pressable>
   );
 
-  const isItemInCart = (p: Product) => lines.some((l) => l.id === `${p.category}-${p.title}`);
+  const getCartIdsForProduct = (p: Product) => {
+    const baseId = `${p.category}-${p.title}`;
+    if (p.doses?.length) return p.doses.map((d) => `${baseId}-${d.label}`);
+    return [baseId];
+  };
+
+  const isItemInCart = (p: Product) => {
+    const cartIds = getCartIdsForProduct(p);
+    return lines.some((l) => cartIds.includes(l.id));
+  };
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { direction: isRTL ? 'rtl' : 'ltr' }]}>
       <ClinicalHeader
-        title="The Clinical Atelier"
+        title={locale === 'ar' ? 'المنتجات' : 'Products'}
         onBack={() => navigation.goBack()}
-        right={
-          <View style={styles.headerRight}>
-            <Pressable
-              hitSlop={8}
-              onPress={() => navigation.navigate('Main', { screen: 'Search' })}
-            >
-              <MaterialCommunityIcons name="magnify" size={22} color={colors.primary} />
-            </Pressable>
-            <Pressable style={styles.cartIconWrap} hitSlop={8} onPress={() => navigation.navigate('Main', { screen: 'Cart' })}>
-              <MaterialCommunityIcons name="cart-outline" size={22} color={colors.primary} />
-              {cartCount > 0 ? (
-                <View style={styles.cartBadge}>
-                  <Text style={styles.cartBadgeTxt}>{cartCount > 99 ? '99+' : String(cartCount)}</Text>
-                </View>
-              ) : null}
-            </Pressable>
-          </View>
-        }
       />
       <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 100, paddingHorizontal: 24 }}>
-        <Text style={styles.kicker}>
-          Premium Supplements · {selectedCategory}
-          {query ? ` · “${query}”` : ''}
+        <Text style={[styles.kicker, isRTL && styles.textRight]}>
+          {isArabic ? 'مكملات مميزة' : 'Premium Supplements'} · {categoryLabel(selectedCategory)}
+          {searchText ? ` · “${searchText}”` : ''}
         </Text>
-        <Text style={styles.heroTitle}>{selectedCategory === 'All' ? 'Catalog' : selectedCategory}</Text>
-        <Text style={styles.heroSub}>
-          {query
-            ? `Results and picks aligned with “${query}”.`
-            : 'Scientifically formulated micronutrients designed to bridge nutritional gaps and optimize your biological sanctuary.'}
+        <Text style={[styles.heroTitle, isRTL && styles.textRight]}>
+          {selectedCategory === 'All' ? (isArabic ? 'الكتالوج' : 'Catalog') : categoryLabel(selectedCategory)}
+        </Text>
+        <Text style={[styles.heroSub, isRTL && styles.textRight]}>
+          {searchText
+            ? isArabic
+              ? `نتائج واقتراحات مطابقة لـ “${searchText}”.`
+              : `Results and picks aligned with “${searchText}”.`
+            : isArabic
+              ? 'تركيبات مدروسة علميا لدعم الاحتياجات الغذائية اليومية.'
+              : 'Scientifically formulated micronutrients designed to bridge nutritional gaps and optimize your biological sanctuary.'}
         </Text>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
+          style={styles.categorySliderBleed}
           contentContainerStyle={styles.categorySlider}
         >
           {CATEGORY_OPTIONS.map((item) => {
@@ -279,22 +399,29 @@ export function ProductListScreen({ navigation, route }: Props) {
                 style={[styles.categoryChip, active && styles.categoryChipActive]}
                 onPress={() => setSelectedCategory(item)}
               >
-                <Text style={[styles.categoryChipTxt, active && styles.categoryChipTxtActive]}>{item}</Text>
+                <Text style={[styles.categoryChipTxt, active && styles.categoryChipTxtActive]}>{categoryLabel(item)}</Text>
               </Pressable>
             );
           })}
         </ScrollView>
-
-        <View style={styles.tools}>
+        <View style={[styles.searchBar, isRTL && styles.rowReverse]}>
+          <MaterialCommunityIcons name="magnify" size={18} color={colors.outline} />
+          <TextInput
+            style={[styles.searchInput, isRTL && styles.textRight]}
+            value={searchText}
+            onChangeText={setSearchText}
+            placeholder={isArabic ? 'ابحث عن منتج' : 'Search products'}
+            placeholderTextColor={colors.outline}
+          />
           <Pressable
-            style={[styles.tool, styles.toolWide, filtersOpen && styles.toolActive]}
+            style={[styles.searchSortBtn, filtersOpen && styles.toolActive]}
             onPress={() => (filtersOpen ? setFiltersOpen(false) : openFilters())}
             accessibilityRole="button"
             accessibilityState={{ expanded: filtersOpen }}
-            accessibilityLabel={filtersOpen ? 'Hide filters' : 'Show filters'}
+            accessibilityLabel={filtersOpen ? (isArabic ? 'إخفاء الفلاتر' : 'Hide filters') : isArabic ? 'إظهار الفلاتر' : 'Show filters'}
           >
-            <MaterialCommunityIcons name="swap-vertical" size={18} color={colors.onSurface} />
-            <Text style={styles.toolTxt}>Sort</Text>
+            <MaterialCommunityIcons name="swap-vertical" size={16} color={colors.onSurface} />
+            <Text style={styles.toolTxt}>{isArabic ? 'فرز' : 'Sort'}</Text>
             {activeFilterCount > 0 ? (
               <View style={styles.toolBadge}>
                 <Text style={styles.toolBadgeTxt}>{activeFilterCount}</Text>
@@ -305,15 +432,15 @@ export function ProductListScreen({ navigation, route }: Props) {
 
         {filtersOpen ? (
           <View style={styles.filterPanel}>
-            <View style={styles.filterPanelHead}>
-              <Text style={styles.filterPanelTitle}>Filters</Text>
+            <View style={[styles.filterPanelHead, isRTL && styles.rowReverse]}>
+              <Text style={styles.filterPanelTitle}>{isArabic ? 'الفلاتر' : 'Filters'}</Text>
               {activeDraftFilterCount > 0 ? (
                 <Pressable onPress={clearDraftFilters} hitSlop={8}>
-                  <Text style={styles.filterClear}>Clear all</Text>
+                  <Text style={styles.filterClear}>{isArabic ? 'مسح الكل' : 'Clear all'}</Text>
                 </Pressable>
               ) : null}
             </View>
-            <Text style={styles.filterGroupLabel}>price</Text>
+            <Text style={styles.filterGroupLabel}>{isArabic ? 'السعر' : 'price'}</Text>
             <View style={styles.priceCounter}>
               {/* <Pressable
                 style={[styles.counterBtn, maxPrice <= PRICE_SLIDER_MIN && styles.counterBtnDisabled]}
@@ -327,7 +454,13 @@ export function ProductListScreen({ navigation, route }: Props) {
               <View style={styles.counterValue}>
                 <Text style={styles.counterValueMain}>${Math.round(draftMaxPrice)}</Text>
                 <Text style={styles.counterValueSub}>
-                  {draftMaxPrice < PRICE_SLIDER_MAX ? 'ceiling' : 'no limit'}
+                  {draftMaxPrice < PRICE_SLIDER_MAX
+                    ? isArabic
+                      ? 'حد أقصى'
+                      : 'ceiling'
+                    : isArabic
+                      ? 'بدون حد'
+                      : 'no limit'}
                 </Text>
               </View>
               {/* <Pressable
@@ -351,25 +484,32 @@ export function ProductListScreen({ navigation, route }: Props) {
               maximumTrackTintColor={colors.outlineVariant}
               thumbTintColor={colors.primary}
             />
-            <View style={styles.sliderEnds}>
+            <View style={[styles.sliderEnds, isRTL && styles.rowReverse]}>
               <Text style={styles.sliderEndTxt}>${PRICE_SLIDER_MIN}</Text>
               <Text style={styles.sliderEndTxt}>${PRICE_SLIDER_MAX}</Text>
             </View>
-            <Text style={[styles.filterGroupLabel, styles.filterGroupLabelSpaced]}>Highlights</Text>
-            <FilterCheck checked={draftFPure} onToggle={() => setDraftFPure((v) => !v)} label="Pure Grade" />
+            <Text style={[styles.filterGroupLabel, styles.filterGroupLabelSpaced]}>{isArabic ? 'خيارات إضافية' : 'Highlights'}</Text>
+            <FilterCheck checked={draftFPure} onToggle={() => setDraftFPure((v) => !v)} label={isArabic ? 'درجة نقاء' : 'Pure Grade'} />
             <FilterCheck
               checked={draftFBestseller}
               onToggle={() => setDraftFBestseller((v) => !v)}
-              label="Bestseller"
+              label={isArabic ? 'الأكثر مبيعا' : 'Bestseller'}
             />
             <Pressable style={styles.filterDoneBtn} onPress={applyFilters}>
-              <Text style={styles.filterDoneTxt}>Done</Text>
+              <Text style={styles.filterDoneTxt}>{isArabic ? 'تم' : 'Done'}</Text>
             </Pressable>
           </View>
         ) : null}
 
         <View style={styles.grid}>
-          {filteredProducts.map((p) => (
+          {filteredProducts.map((p) => {
+            const itemTitle = isArabic ? p.titleAr : p.title;
+            const shareMessage =
+              locale === 'ar'
+                ? `مرحبًا، لدي سؤال عن "${itemTitle}" ؟`
+                : `Hi, I have a question about "${itemTitle}" ?`;
+
+            return (
             <Pressable
               key={p.title}
               style={styles.card}
@@ -377,59 +517,90 @@ export function ProductListScreen({ navigation, route }: Props) {
             >
               <View style={styles.imgWrap}>
                 <Image source={{ uri: p.image }} style={styles.pimg} contentFit="cover" />
+                <Pressable
+                  hitSlop={8}
+                  style={styles.cardShareBtn}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    navigation.navigate('SpecialistChat', {
+                      topic: 'general',
+                      initialMessage: shareMessage,
+                      initialImageUri: p.image,
+                    });
+                  }}
+                >
+                  <MaterialCommunityIcons name="share-variant" size={18} color={colors.primary} />
+                </Pressable>
                 {p.badge ? (
-                  <View style={[styles.badge, p.tertiary && styles.badgeTer]}>
-                    <Text style={[styles.badgeTxt, p.tertiary && { color: colors.tertiary }]}>{p.badge}</Text>
+                  <View style={[styles.badge, isRTL && styles.badgeRtl, p.tertiary && styles.badgeTer]}>
+                    <Text style={[styles.badgeTxt, p.tertiary && { color: colors.tertiary }]}>{badgeLabel(p.badge)}</Text>
                   </View>
                 ) : null}
               </View>
               <View style={styles.cardBody}>
-                <Text style={styles.brand}>Vitalis Lab</Text>
-                <Text style={styles.pname} numberOfLines={2}>
-                  {p.title}
+                <Text style={[styles.brand, isRTL && styles.textRight]}>{isArabic ? 'مختبر فيتاليس' : 'Vitalis Lab'}</Text>
+                <Text style={[styles.pname, isRTL && styles.textRight]} numberOfLines={2}>
+                  {isArabic ? p.titleAr : p.title}
                 </Text>
-                <Text style={styles.psub} numberOfLines={2}>
-                  {p.sub}
+                <Text style={[styles.psub, isRTL && styles.textRight]} numberOfLines={2}>
+                  {isArabic ? p.subAr : p.sub}
                 </Text>
-                <View style={styles.cardFoot}>
-                  <Text style={styles.price}>{p.price}</Text>
+                <View style={[styles.cardFoot, isRTL && styles.rowReverse]}>
+                  <Text style={[styles.price, isRTL && styles.textRight]}>{p.price}</Text>
                   {(() => {
                     const added = isItemInCart(p);
-                    const itemId = `${p.category}-${p.title}`;
+                    const baseId = `${p.category}-${p.title}`;
+                    const hasMultipleDoses = (p.doses?.length ?? 0) > 1;
+                    const cartIds = getCartIdsForProduct(p);
+                    const defaultDose = p.doses?.[0];
+                    const defaultCartId = defaultDose ? `${baseId}-${defaultDose.label}` : baseId;
                     return (
-                      <View style={styles.actionRow}>
+                      <View style={[styles.actionRow, isRTL && styles.rowReverse]}>
                         {added ? (
-                          <View style={styles.addedStack}>
+                          <View style={[styles.addedStack, isRTL && styles.alignStart]}>
                             <Pressable
                               style={styles.removeBtn}
                               onPress={(e) => {
                                 e.stopPropagation();
-                                removeItem(itemId);
+                                // If multiple doses exist, remove all variants of this product.
+                                cartIds.forEach((id) => removeItem(id));
                               }}
                             >
                               <MaterialCommunityIcons name="trash-can-outline" size={14} color={colors.onSurface} />
                             </Pressable>
                             <View style={styles.addedPill}>
                               <MaterialCommunityIcons name="check-circle-outline" size={14} color={colors.primary} />
-                              <Text style={styles.addedPillTxt}>Added</Text>
+                              <Text style={styles.addedPillTxt}>{isArabic ? 'تمت إضافته' : 'Added'}</Text>
                             </View>
                           </View>
                         ) : (
                           <Pressable
                             onPress={(e) => {
                               e.stopPropagation();
+                              // For multi-dose items, force the user to pick the dose inside item details.
+                              if (hasMultipleDoses) {
+                                navigation.navigate('ProductDetail', { item: p });
+                                return;
+                              }
                               addItem({
-                                id: itemId,
-                                title: p.title,
-                                sub: p.sub,
-                                price: p.priceValue.toFixed(2),
+                                id: defaultCartId,
+                                title: defaultDose
+                                  ? `${isArabic ? p.titleAr : p.title} ${defaultDose.label}`
+                                  : isArabic
+                                    ? p.titleAr
+                                    : p.title,
+                                sub: isArabic ? p.subAr : p.sub,
+                                price: (defaultDose?.priceValue ?? p.priceValue).toFixed(2),
                                 image: p.image,
                               });
                             }}
                           >
-                            <LinearGradient colors={[colors.primary, colors.primaryContainer]} style={styles.add}>
+                            <LinearGradient
+                              colors={[colors.primary, colors.primaryContainer]}
+                              style={[styles.add, isRTL && styles.rowReverse]}
+                            >
                               <MaterialCommunityIcons name="cart-plus" size={18} color={colors.onPrimaryContainer} />
-                              <Text style={styles.addTxt}>Add</Text>
+                              <Text style={styles.addTxt}>{isArabic ? 'إضافة' : 'Add'}</Text>
                             </LinearGradient>
                           </Pressable>
                         )}
@@ -439,11 +610,14 @@ export function ProductListScreen({ navigation, route }: Props) {
                 </View>
               </View>
             </Pressable>
-          ))}
+            );
+          })}
         </View>
 
         <Text style={styles.showing}>
-          Showing {filteredProducts.length} of {products.length} products
+          {isArabic
+            ? `عرض ${filteredProducts.length} من أصل ${products.length} منتج`
+            : `Showing ${filteredProducts.length} of ${products.length} products`}
         </Text>
         <View style={styles.progress}>
           <View style={[styles.progressFill, { width: `${progressPercent}%` }]} />
@@ -456,30 +630,9 @@ export function ProductListScreen({ navigation, route }: Props) {
 function createProductListStyles(c: ThemeColors, isDark: boolean) {
   return StyleSheet.create({
     root: { flex: 1, backgroundColor: screenRootBg(isDark, c.background) },
-    headerRight: { flexDirection: 'row', gap: 12 },
-    cartIconWrap: {
-      position: 'relative',
-    },
-    cartBadge: {
-      position: 'absolute',
-      right: -8,
-      top: -8,
-      minWidth: 16,
-      height: 16,
-      borderRadius: 8,
-      paddingHorizontal: 3,
-      backgroundColor: c.primary,
-      borderWidth: 1,
-      borderColor: c.background,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    cartBadgeTxt: {
-      fontSize: 9,
-      fontWeight: '900',
-      color: c.onPrimary,
-      lineHeight: 11,
-    },
+    rowReverse: { flexDirection: 'row-reverse' },
+    textRight: { textAlign: 'right' },
+    alignStart: { alignItems: 'flex-start' },
     kicker: {
       fontSize: 11,
       fontWeight: '700',
@@ -490,7 +643,28 @@ function createProductListStyles(c: ThemeColors, isDark: boolean) {
     },
     heroTitle: { fontSize: 40, fontWeight: '900', color: c.onSurface, marginTop: 6 },
     heroSub: { color: c.onSurfaceVariant, marginTop: 10, lineHeight: 22, maxWidth: 360 },
-    categorySlider: { paddingVertical: 16, gap: 10 },
+    categorySliderBleed: { marginHorizontal: -24 },
+    categorySlider: { paddingVertical: 16, gap: 10, paddingHorizontal: 24 },
+    searchBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      borderWidth: 1,
+      borderColor: c.outlineVariant,
+      backgroundColor: c.surfaceContainerLow,
+      borderRadius: 12,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      marginTop: 2,
+      marginBottom: 12,
+    },
+    searchInput: {
+      flex: 1,
+      color: c.onSurface,
+      fontSize: 14,
+      fontWeight: '600',
+      paddingVertical: 0,
+    },
     categoryChip: {
       borderRadius: 999,
       borderWidth: 1,
@@ -505,23 +679,22 @@ function createProductListStyles(c: ThemeColors, isDark: boolean) {
     },
     categoryChipTxt: { fontSize: 12, fontWeight: '700', color: c.onSurfaceVariant },
     categoryChipTxtActive: { color: c.primary },
-    tools: { flexDirection: 'row', gap: 10, marginTop: 20, marginBottom: 12 },
-    tool: {
+    searchSortBtn: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 8,
+      gap: 4,
       backgroundColor: c.surfaceContainerHigh,
-      paddingHorizontal: 18,
-      paddingVertical: 12,
-      borderRadius: 14,
+      paddingHorizontal: 8,
+      paddingVertical: 6,
+      borderRadius: 10,
+      flexShrink: 0,
     },
-    toolWide: { flexGrow: 1 },
     toolActive: {
       borderWidth: 1,
       borderColor: c.primary,
       backgroundColor: c.tabPillActive,
     },
-    toolTxt: { fontWeight: '700', color: c.onSurface, fontSize: 13 },
+    toolTxt: { fontWeight: '700', color: c.onSurface, fontSize: 12 },
     toolBadge: {
       minWidth: 18,
       height: 18,
@@ -620,7 +793,7 @@ function createProductListStyles(c: ThemeColors, isDark: boolean) {
       marginBottom: 8,
       minHeight: 320,
     },
-    imgWrap: { aspectRatio: 4 / 5, backgroundColor: c.surfaceContainerHigh },
+    imgWrap: { aspectRatio: 4 / 5, backgroundColor: c.surfaceContainerHigh, position: 'relative' },
     pimg: { width: '100%', height: '100%' },
     cardBody: {
       flex: 1,
@@ -629,11 +802,15 @@ function createProductListStyles(c: ThemeColors, isDark: boolean) {
     badge: {
       position: 'absolute',
       top: 10,
-      left: 10,
+      left: 44,
       backgroundColor: c.tabPillActive,
       paddingHorizontal: 8,
       paddingVertical: 4,
       borderRadius: 6,
+    },
+    badgeRtl: {
+      left: undefined,
+      right: 10,
     },
     badgeTer: { backgroundColor: `${c.tertiary}40` },
     badgeTxt: { fontSize: 9, fontWeight: '900', letterSpacing: 1, color: c.primary, textTransform: 'uppercase' },
@@ -687,6 +864,20 @@ function createProductListStyles(c: ThemeColors, isDark: boolean) {
       backgroundColor: c.surfaceContainerHigh,
       alignItems: 'center',
       justifyContent: 'center',
+    },
+    cardShareBtn: {
+      position: 'absolute',
+      top: 10,
+      left: 10,
+      width: 34,
+      height: 34,
+      borderRadius: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: c.surfaceContainerHigh,
+      borderWidth: 1,
+      borderColor: c.outlineVariant,
+      zIndex: 2,
     },
     showing: { textAlign: 'center', color: c.onSurfaceVariant, marginTop: 24 },
     progress: {
